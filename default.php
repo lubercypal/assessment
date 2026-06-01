@@ -1,1 +1,1 @@
-<?php echo "Testing SFTP"; ?>
+<?php echo "Testing SFTP i.e. Simple File Transfer Protocol"; ?>
