@@ -2,3 +2,5 @@
 .DS_Store
 node_modules/
 vendor/
+config/env.php
+storage/logs/*.log

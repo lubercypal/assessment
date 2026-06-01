@@ -1,1 +1,3 @@
-<?php echo "Testing SFTP i.e. Simple File Transfer Protocol"; ?>
+<?php
+header('Location: login');
+exit;

@@ -1,0 +1,22 @@
+<?php
+return [
+    'app_env' => 'local',
+    'app_url' => 'https://assessment.netcascade.in',
+    'jwt_secret' => 'change-this-to-a-long-random-secret',
+    'jwt_issuer' => 'assessment.netcascade.in',
+    'jwt_ttl_seconds' => 7200,
+    'cookie_secure' => true,
+    'db_host' => 'localhost',
+    'db_name' => 'assessment',
+    'db_user' => 'assessment_user',
+    'db_pass' => 'change-me',
+    'mail_driver' => 'mail',
+    'mail_log_path' => __DIR__ . '/../storage/logs/mail.log',
+    'mail_from' => 'no-reply@assessment.netcascade.in',
+    'mail_from_name' => 'Assessment Platform',
+    'smtp_host' => 'smtp.office365.com',
+    'smtp_port' => 587,
+    'smtp_secure' => 'tls',
+    'smtp_username' => 'mailbox@example.com',
+    'smtp_password' => 'change-me',
+];
