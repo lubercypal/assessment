@@ -81,8 +81,16 @@ final class Mailer
             fclose($socket);
 
             return true;
-        } catch (\RuntimeException) {
+        } catch (\RuntimeException $e) {
+
+            self::logError(
+                "TO: {$to}\n" .
+                "SUBJECT: {$subject}\n" .
+                "ERROR: " . $e->getMessage()
+            );
+
             fclose($socket);
+
             return false;
         }
     }
@@ -126,7 +134,9 @@ final class Mailer
 
         $code = (int) substr($response, 0, 3);
         if (!in_array($code, $expectedCodes, true)) {
-            throw new \RuntimeException('Unexpected SMTP response.');
+            throw new \RuntimeException(
+                'Unexpected SMTP response: ' .trim($response)
+            );
         }
 
         return $response;
@@ -140,5 +150,27 @@ final class Mailer
     private static function encodeHeader(string $value): string
     {
         return '=?UTF-8?B?' . base64_encode($value) . '?=';
+    }
+
+    private static function logError(string $message): void
+    {
+        $path = app_config(
+            'mail_error_log_path',
+            __DIR__ . '/../../storage/logs/mail-error.log'
+        );
+
+        $directory = dirname($path);
+
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        file_put_contents(
+            $path,
+            '[' . date('Y-m-d H:i:s') . "]\n" .
+            $message .
+            "\n\n",
+            FILE_APPEND | LOCK_EX
+        );
     }
 }
