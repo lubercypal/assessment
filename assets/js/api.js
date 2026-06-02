@@ -17,6 +17,26 @@ function cookieValue(name) {
         .join('=') || '';
 }
 
+function getLoader() {
+    return document.querySelector('#globalLoader');
+}
+
+function showLoader(text = 'Working...') {
+    const loader = getLoader();
+    if (!loader) return;
+    const label = loader.querySelector('[data-loader-text]');
+    if (label) {
+        label.textContent = text;
+    }
+    loader.classList.remove('hidden');
+}
+
+function hideLoader() {
+    const loader = getLoader();
+    if (!loader) return;
+    loader.classList.add('hidden');
+}
+
 async function api(route, options = {}) {
     const headers = {
         'Content-Type': 'application/json',
@@ -52,7 +72,10 @@ function bindForm(selector, handler) {
         event.preventDefault();
         const button = form.querySelector('button[type="submit"]');
         const message = document.querySelector(form.dataset.message || '#message');
-        if (loader) loader.classList.remove('hidden');
+        const overlay = loader || getLoader();
+        if (overlay) {
+            overlay.classList.remove('hidden');
+        }
         button && (button.disabled = true);
         message && (message.className = 'message') && (message.textContent = 'Working...');
         try {
@@ -64,7 +87,9 @@ function bindForm(selector, handler) {
             }
         } finally {
             button && (button.disabled = false);
-            if (loader) loader.classList.add('hidden');
+            if (overlay) {
+                overlay.classList.add('hidden');
+            }
         }
     });
 }

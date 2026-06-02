@@ -9,32 +9,42 @@ let tickHandle = null;
 const statuses = new Map();
 
 document.addEventListener('DOMContentLoaded', async () => {
-    await requireAuth();
-    if (!attemptId) {
-        window.location.href = 'dashboard';
-        return;
+    showLoader('Loading assessment...');
+    try {
+        await requireAuth();
+        if (!attemptId) {
+            window.location.href = 'dashboard';
+            return;
+        }
+
+        document.querySelector('#submitTest').addEventListener('click', submitAttempt);
+        document.querySelector('#next').addEventListener('click', () => saveAndMove(currentIndex + 1, 'answered'));
+        document.querySelector('#previous').addEventListener('click', () => saveAndMove(currentIndex - 1, 'answered'));
+        document.querySelector('#skip').addEventListener('click', () => saveAndMove(currentIndex + 1, 'skipped'));
+        document.querySelector('#review').addEventListener('click', () => saveAndMove(currentIndex + 1, 'review'));
+
+        await loadQuestion(0);
+    } finally {
+        hideLoader();
     }
-
-    document.querySelector('#submitTest').addEventListener('click', submitAttempt);
-    document.querySelector('#next').addEventListener('click', () => saveAndMove(currentIndex + 1, 'answered'));
-    document.querySelector('#previous').addEventListener('click', () => saveAndMove(currentIndex - 1, 'answered'));
-    document.querySelector('#skip').addEventListener('click', () => saveAndMove(currentIndex + 1, 'skipped'));
-    document.querySelector('#review').addEventListener('click', () => saveAndMove(currentIndex + 1, 'review'));
-
-    await loadQuestion(0);
 });
 
 async function loadQuestion(index) {
-    const data = await api(`attempts/${attemptId}/question?index=${index}`);
-    currentIndex = data.index;
-    currentQuestion = data.question;
-    currentAttempt = data.attempt;
-    totalQuestions = data.attempt.total_questions;
-    mode = data.attempt.mode;
+    showLoader('Loading question...');
+    try {
+        const data = await api(`attempts/${attemptId}/question?index=${index}`);
+        currentIndex = data.index;
+        currentQuestion = data.question;
+        currentAttempt = data.attempt;
+        totalQuestions = data.attempt.total_questions;
+        mode = data.attempt.mode;
 
-    renderQuestion(data);
-    renderNavigator();
-    startTimer();
+        renderQuestion(data);
+        renderNavigator();
+        startTimer();
+    } finally {
+        hideLoader();
+    }
 }
 
 function renderQuestion(data) {
@@ -68,14 +78,20 @@ async function save(status = 'answered') {
     if (!currentQuestion) return null;
     const selected = selectedOptionIds();
     const finalStatus = status === 'answered' && selected.length === 0 ? 'skipped' : status;
-    const result = await api(`attempts/${attemptId}/answer`, {
-        method: 'POST',
-        body: JSON.stringify({
-            question_id: currentQuestion.id,
-            selected_option_ids: selected,
-            status: finalStatus,
-        }),
-    });
+    showLoader('Saving answer...');
+    let result;
+    try {
+        result = await api(`attempts/${attemptId}/answer`, {
+            method: 'POST',
+            body: JSON.stringify({
+                question_id: currentQuestion.id,
+                selected_option_ids: selected,
+                status: finalStatus,
+            }),
+        });
+    } finally {
+        hideLoader();
+    }
     statuses.set(currentIndex, finalStatus);
     renderNavigator();
     if (result.feedback) {
@@ -137,10 +153,15 @@ function updateTimer() {
 }
 
 async function submitAttempt() {
-    await save('answered').catch(() => {});
-    const result = await api(`attempts/${attemptId}/submit`, { method: 'POST', body: '{}' });
-    sessionStorage.setItem(`result_${attemptId}`, JSON.stringify(result));
-    window.location.href = `result?attempt=${attemptId}`;
+    showLoader('Submitting assessment...');
+    try {
+        await save('answered').catch(() => {});
+        const result = await api(`attempts/${attemptId}/submit`, { method: 'POST', body: '{}' });
+        sessionStorage.setItem(`result_${attemptId}`, JSON.stringify(result));
+        window.location.href = `result?attempt=${attemptId}`;
+    } finally {
+        hideLoader();
+    }
 }
 
 function escapeHtml(value) {

@@ -5,17 +5,18 @@ function otpKey(email) {
 function startCooldown(button, seconds) {
     if (!button) return;
     let remaining = seconds;
+    const baseLabel = button.dataset.baseLabel || button.textContent.trim() || 'Re-send OTP';
     button.disabled = true;
-    button.textContent = `Send OTP (${remaining}s)`;
+    button.textContent = `${baseLabel} (${remaining}s)`;
     const timer = setInterval(() => {
         remaining -= 1;
         if (remaining <= 0) {
             clearInterval(timer);
             button.disabled = false;
-            button.textContent = 'Send OTP';
+            button.textContent = baseLabel;
             return;
         }
-        button.textContent = `Send OTP (${remaining}s)`;
+        button.textContent = `${baseLabel} (${remaining}s)`;
     }, 1000);
 }
 
@@ -35,11 +36,12 @@ bindForm('#otpForm', async (data) => {
 const sendOtpBtn = document.querySelector('#sendOtpBtn');
 if (sendOtpBtn) {
     const emailInput = document.querySelector('#otpEmail');
+    sendOtpBtn.dataset.baseLabel = 'Re-send OTP';
     const syncCooldown = () => {
         const email = (emailInput?.value || '').trim().toLowerCase();
         if (!email) {
             sendOtpBtn.disabled = true;
-            sendOtpBtn.textContent = 'Send OTP';
+            sendOtpBtn.textContent = sendOtpBtn.dataset.baseLabel;
             return;
         }
 
@@ -50,7 +52,7 @@ if (sendOtpBtn) {
             startCooldown(sendOtpBtn, remaining);
         } else {
             sendOtpBtn.disabled = false;
-            sendOtpBtn.textContent = 'Send OTP';
+            sendOtpBtn.textContent = sendOtpBtn.dataset.baseLabel;
         }
     };
 
@@ -64,6 +66,7 @@ if (sendOtpBtn) {
             return;
         }
 
+        showLoader('Sending OTP...');
         sendOtpBtn.disabled = true;
         try {
             await api('auth/resend-otp', {
@@ -82,6 +85,8 @@ if (sendOtpBtn) {
                 sendOtpBtn.disabled = false;
             }
             showMessage(error.message, 'error');
+        } finally {
+            hideLoader();
         }
     });
 }

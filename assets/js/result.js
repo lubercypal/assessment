@@ -2,9 +2,14 @@ const resultParams = new URLSearchParams(window.location.search);
 const resultAttemptId = resultParams.get('attempt');
 
 document.addEventListener('DOMContentLoaded', async () => {
-    await requireAuth();
-    const data = await api(`attempts/${resultAttemptId}/result`);
-    renderResult(data);
+    showLoader('Loading result...');
+    try {
+        await requireAuth();
+        const data = await api(`attempts/${resultAttemptId}/result`);
+        renderResult(data);
+    } finally {
+        hideLoader();
+    }
 });
 
 function renderResult(data) {

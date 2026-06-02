@@ -7,6 +7,13 @@
     <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body class="auth-page">
+    <div id="globalLoader" class="loader-overlay hidden" aria-live="polite" aria-busy="true">
+        <div class="loader-card">
+            <img src="assets/img/assessment-loader.svg" alt="Loading">
+            <div class="loader-text" data-loader-text>Working...</div>
+            <div class="loader-subtext">Please wait.</div>
+        </div>
+    </div>
     <main class="auth-shell panel">
         <h1>Set New Password</h1>
         <form id="resetForm" class="stack">

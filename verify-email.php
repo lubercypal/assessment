@@ -10,6 +10,13 @@ $email = htmlspecialchars($_GET['email'] ?? '', ENT_QUOTES);
     <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body class="auth-page">
+    <div id="globalLoader" class="loader-overlay hidden" aria-live="polite" aria-busy="true">
+        <div class="loader-card">
+            <img src="assets/img/assessment-loader.svg" alt="Loading">
+            <div class="loader-text" data-loader-text>Working...</div>
+            <div class="loader-subtext">Please wait.</div>
+        </div>
+    </div>
     <main class="auth-shell panel">
         <h1>Email Verification</h1>
         <p>Enter the OTP sent to your registered email address. If you have not received one yet, send a fresh OTP from here.</p>
@@ -17,10 +24,10 @@ $email = htmlspecialchars($_GET['email'] ?? '', ENT_QUOTES);
             <label class="field"><span>Email</span><input id="otpEmail" type="email" name="email" required value="<?php echo $email; ?>"></label>
             <label class="field"><span>OTP</span><input name="otp" inputmode="numeric" maxlength="6" required></label>
             <div id="message" class="message"></div>
-            <div class="actions">
-                <button id="sendOtpBtn" type="button" class="secondary">Send OTP</button>
-                <button type="submit">Verify Email</button>
-                <a href="login">Back to Login</a>
+            <div class="verify-actions">
+                <button id="sendOtpBtn" type="button" class="secondary action-wide">Re-send OTP</button>
+                <button type="submit" class="action-wide">Verify Email</button>
+                <a href="login" class="action-wide action-link">Back to Login</a>
             </div>
         </form>
     </main>
