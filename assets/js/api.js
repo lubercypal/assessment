@@ -35,7 +35,10 @@ async function api(route, options = {}) {
     const payload = await response.json().catch(() => ({ ok: false, error: { message: 'Invalid server response.' } }));
 
     if (!response.ok || !payload.ok) {
-        throw new Error(payload.error?.message || 'Request failed.');
+        const error = new Error(payload.error?.message || 'Request failed.');
+        error.details = payload.error?.details || {};
+        error.status = response.status;
+        throw error;
     }
 
     return payload.data;
@@ -44,10 +47,12 @@ async function api(route, options = {}) {
 function bindForm(selector, handler) {
     const form = document.querySelector(selector);
     if (!form) return;
+    const loader = form.dataset.loader ? document.querySelector(form.dataset.loader) : null;
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = form.querySelector('button[type="submit"]');
         const message = document.querySelector(form.dataset.message || '#message');
+        if (loader) loader.classList.remove('hidden');
         button && (button.disabled = true);
         message && (message.className = 'message') && (message.textContent = 'Working...');
         try {
@@ -59,6 +64,7 @@ function bindForm(selector, handler) {
             }
         } finally {
             button && (button.disabled = false);
+            if (loader) loader.classList.add('hidden');
         }
     });
 }

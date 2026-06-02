@@ -61,6 +61,46 @@ a {
     padding: 28px;
 }
 
+.loader-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    background: rgba(12, 18, 33, 0.58);
+    backdrop-filter: blur(3px);
+}
+
+.loader-card {
+    display: grid;
+    place-items: center;
+    gap: 14px;
+    width: min(340px, calc(100vw - 32px));
+    padding: 28px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 18px 50px rgba(8, 15, 28, 0.28);
+}
+
+.loader-card img {
+    width: 96px;
+    height: 96px;
+    display: block;
+}
+
+.loader-text {
+    font-weight: 750;
+    color: var(--brand-dark);
+    letter-spacing: 0;
+}
+
+.loader-subtext {
+    font-size: 14px;
+    color: var(--muted);
+    text-align: center;
+}
+
 .topbar {
     display: flex;
     justify-content: space-between;

@@ -17,6 +17,7 @@
             <div class="actions">
                 <button type="submit">Login</button>
                 <a href="register">Register</a>
+                <a href="verify-email">Verify Email</a>
                 <a href="forgot-password">Forgot Password</a>
             </div>
         </form>

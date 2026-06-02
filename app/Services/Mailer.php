@@ -24,7 +24,12 @@ final class Mailer
             "From: {$fromName} <{$from}>",
         ];
 
-        return mail($to, $subject, $message, implode("\r\n", $headers));
+        $ok = mail($to, $subject, $message, implode("\r\n", $headers));
+        if (!$ok) {
+            self::logError("MAIL() failed\nTO: {$to}\nSUBJECT: {$subject}");
+        }
+
+        return $ok;
     }
 
     private static function smtp(string $to, string $subject, string $message): bool
@@ -41,6 +46,7 @@ final class Mailer
         $socket = stream_socket_client("{$transport}:{$port}", $errno, $errstr, 20, STREAM_CLIENT_CONNECT);
 
         if (!$socket) {
+            self::logError("SMTP connect failed ({$errno}): {$errstr}\nTO: {$to}\nSUBJECT: {$subject}");
             return false;
         }
 
@@ -82,11 +88,8 @@ final class Mailer
 
             return true;
         } catch (\RuntimeException $e) {
-
             self::logError(
-                "TO: {$to}\n" .
-                "SUBJECT: {$subject}\n" .
-                "ERROR: " . $e->getMessage()
+                "SMTP send failed\nTO: {$to}\nSUBJECT: {$subject}\nERROR: " . $e->getMessage()
             );
 
             fclose($socket);

@@ -43,22 +43,67 @@ final class AuthController
             Response::error('Email is already registered.', 409);
         }
 
-        $stmt = db()->prepare(
-            'INSERT INTO users (full_name, email, mobile_number, password_hash, terms_accepted_at)
-             VALUES (?, ?, ?, ?, NOW())'
-        );
-        $stmt->execute([
-            trim((string) $data['full_name']),
-            $email,
-            trim((string) $data['mobile_number']),
-            password_hash((string) $data['password'], PASSWORD_DEFAULT),
-        ]);
+        $existing = $this->findUserByEmail($email);
+        if ($existing && $existing['email_verified_at']) {
+            Response::error('This email is already verified. Please log in.', 409, [
+                'action' => 'login',
+            ]);
+        }
 
-        $userId = (int) db()->lastInsertId();
-        $this->sendOtp($userId, $email);
-        SecurityLog::record('register', $userId, ['email' => $email]);
+        if ($existing && !$existing['email_verified_at']) {
+            $result = $this->issueOtp((int) $existing['id'], $email, 45);
+            if ($result['cooldown']) {
+                Response::error($result['message'], 429, [
+                    'retry_after_seconds' => $result['retry_after_seconds'],
+                    'action' => 'verify-email',
+                    'email' => $email,
+                ]);
+            }
 
-        Response::ok(['message' => 'Registration successful. Check your email for the OTP.'], 201);
+            Response::ok([
+                'message' => 'Account already exists but is not verified. We sent a fresh OTP.',
+                'next' => 'verify-email',
+                'email' => $email,
+            ], 200);
+            return;
+        }
+
+        db()->beginTransaction();
+        try {
+            $stmt = db()->prepare(
+                'INSERT INTO users (full_name, email, mobile_number, password_hash, terms_accepted_at)
+                 VALUES (?, ?, ?, ?, NOW())'
+            );
+            $stmt->execute([
+                trim((string) $data['full_name']),
+                $email,
+                trim((string) $data['mobile_number']),
+                password_hash((string) $data['password'], PASSWORD_DEFAULT),
+            ]);
+
+            $userId = (int) db()->lastInsertId();
+            $result = $this->issueOtp($userId, $email, 45);
+            if ($result['cooldown']) {
+                throw new \RuntimeException($result['message']);
+            }
+
+            db()->commit();
+            SecurityLog::record('register', $userId, ['email' => $email]);
+
+            Response::ok([
+                'message' => 'Registration successful. Check your email for the OTP.',
+                'next' => 'verify-email',
+                'email' => $email,
+            ], 201);
+        } catch (\Throwable $e) {
+            if (db()->inTransaction()) {
+                db()->rollBack();
+            }
+            Response::error(
+                $e->getMessage() ?: 'Registration could not be completed. Please try again.',
+                500
+            );
+        }
     }
 
     public function verifyEmail(array $data): void
@@ -117,7 +162,15 @@ final class AuthController
             Response::error('Email is already verified.', 409);
         }
 
-        $this->sendOtp((int) $user['id'], $email);
+        $result = $this->issueOtp((int) $user['id'], $email, 45);
+        if ($result['cooldown']) {
+            Response::error($result['message'], 429, [
+                'retry_after_seconds' => $result['retry_after_seconds'],
+                'action' => 'verify-email',
+                'email' => $email,
+            ]);
+        }
+
         Response::ok(['message' => 'A fresh OTP has been sent.']);
     }
 
@@ -244,13 +297,55 @@ final class AuthController
         Response::ok(['message' => 'Logged out.']);
     }
 
-    private function sendOtp(int $userId, string $email): void
+    private function issueOtp(int $userId, string $email, int $cooldownSeconds = 45): array
+    {
+        $cooldown = $this->otpCooldown($userId, $cooldownSeconds);
+        if ($cooldown['blocked']) {
+            return [
+                'cooldown' => true,
+                'retry_after_seconds' => $cooldown['retry_after_seconds'],
+                'message' => "Please wait {$cooldown['retry_after_seconds']} seconds before requesting another OTP.",
+            ];
+        }
+
+        $otp = $this->createOtp($userId);
+        if (!Mailer::send($email, 'Your assessment verification OTP', "Your OTP is {$otp}. It expires in 10 minutes.")) {
+            throw new \RuntimeException('OTP email could not be sent. Please check the mail log.');
+        }
+
+        return [
+            'cooldown' => false,
+            'retry_after_seconds' => 0,
+        ];
+    }
+
+    private function otpCooldown(int $userId, int $cooldownSeconds): array
+    {
+        $stmt = db()->prepare('SELECT created_at FROM email_otps WHERE user_id = ? ORDER BY id DESC LIMIT 1');
+        $stmt->execute([$userId]);
+        $lastSent = $stmt->fetchColumn();
+
+        if (!$lastSent) {
+            return ['blocked' => false, 'retry_after_seconds' => 0];
+        }
+
+        $elapsed = time() - strtotime((string) $lastSent);
+        if ($elapsed < $cooldownSeconds) {
+            return [
+                'blocked' => true,
+                'retry_after_seconds' => $cooldownSeconds - $elapsed,
+            ];
+        }
+
+        return ['blocked' => false, 'retry_after_seconds' => 0];
+    }
+
+    private function createOtp(int $userId): string
     {
         $otp = (string) random_int(100000, 999999);
         $stmt = db()->prepare('INSERT INTO email_otps (user_id, otp_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))');
         $stmt->execute([$userId, password_hash($otp, PASSWORD_DEFAULT)]);
-
-        Mailer::send($email, 'Your assessment verification OTP', "Your OTP is {$otp}. It expires in 10 minutes.");
+        return $otp;
     }
 
     private function findUserByEmail(string $email): ?array

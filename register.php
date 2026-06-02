@@ -7,11 +7,18 @@
     <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body class="auth-page">
+    <div id="registerLoader" class="loader-overlay hidden" aria-live="polite" aria-busy="true">
+        <div class="loader-card">
+            <img src="assets/img/assessment-loader.svg" alt="Loading assessment registration">
+            <div class="loader-text">Registering your account</div>
+            <div class="loader-subtext">Please wait while we create your profile and send the OTP.</div>
+        </div>
+    </div>
     <main class="auth-shell stack">
         <section class="panel">
             <h1>Student Registration</h1>
             <p>Create your account. Email verification is required before login.</p>
-            <form id="registerForm" class="stack">
+            <form id="registerForm" class="stack" data-loader="#registerLoader" data-message="#message">
                 <label class="field"><span>Full Name</span><input name="full_name" required autocomplete="name"></label>
                 <label class="field"><span>Email ID</span><input type="email" name="email" required autocomplete="email"></label>
                 <label class="field"><span>Mobile Number</span><input name="mobile_number" required autocomplete="tel"></label>
@@ -24,15 +31,8 @@
                 <div class="actions">
                     <button type="submit">Register</button>
                     <a href="login">Cancel</a>
+                    <a href="verify-email">Verify Email</a>
                 </div>
-            </form>
-        </section>
-        <section id="otpPanel" class="panel hidden">
-            <h2>Email Verification</h2>
-            <form id="otpForm" class="stack">
-                <label class="field"><span>Email</span><input id="otpEmail" type="email" name="email" required></label>
-                <label class="field"><span>OTP</span><input name="otp" inputmode="numeric" maxlength="6" required></label>
-                <button type="submit">Verify Email</button>
             </form>
         </section>
     </main>
