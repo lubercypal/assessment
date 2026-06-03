@@ -37,6 +37,44 @@ function hideLoader() {
     loader.classList.add('hidden');
 }
 
+const SESSION_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+let sessionIdleTimer = null;
+let sessionTimeoutBound = false;
+
+function clearSessionTimeout() {
+    if (sessionIdleTimer) {
+        clearTimeout(sessionIdleTimer);
+        sessionIdleTimer = null;
+    }
+}
+
+function startSessionTimeout() {
+    clearSessionTimeout();
+    const reset = () => {
+        clearSessionTimeout();
+        sessionIdleTimer = setTimeout(logoutDueToTimeout, SESSION_IDLE_TIMEOUT_MS);
+    };
+
+    if (!sessionTimeoutBound) {
+        ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach((eventName) => {
+            document.addEventListener(eventName, reset, { passive: true, capture: true });
+        });
+        sessionTimeoutBound = true;
+    }
+
+    reset();
+}
+
+async function logoutDueToTimeout() {
+    showLoader('Session timed out. Logging out...');
+    try {
+        await api('auth/logout', { method: 'POST', body: '{}' }).catch(() => {});
+    } finally {
+        clearToken();
+        window.location.href = 'login?reason=timeout';
+    }
+}
+
 function clearFieldErrors(form) {
     if (!form) return;
     form.querySelectorAll('.field-error').forEach((node) => node.remove());
@@ -158,6 +196,7 @@ function bindForm(selector, handler) {
         const button = form.querySelector('button[type="submit"]');
         const message = document.querySelector(form.dataset.message || '#message');
         const overlay = loader || getLoader();
+        let succeeded = false;
         if (overlay) {
             overlay.classList.remove('hidden');
         }
@@ -169,6 +208,7 @@ function bindForm(selector, handler) {
         }
         try {
             await handler(Object.fromEntries(new FormData(form).entries()), form);
+            succeeded = true;
         } catch (error) {
             renderErrorSummary(message, error);
             showFieldErrors(form, error.details);
@@ -176,6 +216,10 @@ function bindForm(selector, handler) {
             button && (button.disabled = false);
             if (overlay) {
                 overlay.classList.add('hidden');
+            }
+            if (message && succeeded) {
+                message.textContent = '';
+                message.className = 'message';
             }
         }
     });
@@ -190,7 +234,9 @@ function showMessage(text, type = 'success', selector = '#message') {
 
 async function requireAuth() {
     try {
-        return await api('auth/me');
+        const session = await api('auth/me');
+        startSessionTimeout();
+        return session;
     } catch {
         clearToken();
         window.location.href = 'login';

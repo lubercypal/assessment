@@ -62,10 +62,45 @@ App\Services\AuthService::requirePage();
                 </div>
                 <button id="closeSession" type="button" class="secondary">Exit</button>
             </header>
-            <iframe id="sessionFrame" title="Assessment session" class="session-modal__frame" src="about:blank" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+            <div id="sessionMount" class="session-modal__mount"></div>
         </div>
     </div>
+    <template id="assessmentSessionTemplate">
+        <main class="page-shell session-shell">
+            <header class="topbar">
+                <div>
+                    <div class="brand">Assessment Platform</div>
+                    <div id="modeLabel" class="muted">Assessment Mode</div>
+                </div>
+                <div class="timer" id="timer">--:--</div>
+            </header>
+
+            <section class="assessment-layout">
+                <div class="panel">
+                    <div class="question-meta">
+                        <span id="questionNumber">Question</span>
+                        <span>Answers save during navigation</span>
+                    </div>
+                    <h1 id="questionText">Loading...</h1>
+                    <div id="options" class="options"></div>
+                    <div id="feedback" class="feedback hidden"></div>
+                    <div class="actions">
+                        <button id="previous" type="button" class="secondary">Previous</button>
+                        <button id="skip" type="button" class="secondary">Skip</button>
+                        <button id="review" type="button" class="warn">Mark for Review</button>
+                        <button id="next" type="button">Next</button>
+                        <button id="submitTest" type="button" class="warn">Submit Test</button>
+                    </div>
+                </div>
+                <aside class="panel">
+                    <h2>Questions</h2>
+                    <div id="questionNav" class="nav-grid"></div>
+                </aside>
+            </section>
+        </main>
+    </template>
     <script src="assets/js/api.js"></script>
+    <script src="assets/js/assessment.js"></script>
     <script src="assets/js/dashboard.js"></script>
 </body>
 </html>

@@ -1,9 +1,11 @@
 let categories = [];
 const sessionModal = document.querySelector('#sessionModal');
-const sessionFrame = document.querySelector('#sessionFrame');
+const sessionMount = document.querySelector('#sessionMount');
 const sessionTitle = document.querySelector('#sessionTitle');
 const sessionSubtitle = document.querySelector('#sessionSubtitle');
 const closeSessionBtn = document.querySelector('#closeSession');
+const assessmentSessionTemplate = document.querySelector('#assessmentSessionTemplate');
+let activeSession = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     showLoader('Loading dashboard...');
@@ -73,22 +75,34 @@ bindForm('#demoForm', async (_, form) => startAttempt(form, 'demo'));
 bindForm('#assessmentForm', async (_, form) => startAttempt(form, 'assessment'));
 
 function openSession(attemptId, mode) {
-    if (!sessionModal || !sessionFrame) return;
+    if (!sessionModal || !sessionMount || !assessmentSessionTemplate || !window.AssessmentApp) return;
     sessionTitle.textContent = mode === 'demo' ? 'Demo Session' : 'Assessment Session';
     sessionSubtitle.textContent = mode === 'demo'
         ? 'Sample questions with immediate feedback.'
         : 'Formal assessment in progress. Use mouse clicks only.';
     document.body.classList.add('session-open');
-    sessionFrame.src = `assessment?attempt=${attemptId}&mode=${mode}&kiosk=1&embed=1`;
+    sessionMount.innerHTML = '';
+    sessionMount.appendChild(assessmentSessionTemplate.content.cloneNode(true));
     sessionModal.classList.remove('hidden');
     sessionModal.setAttribute('aria-hidden', 'false');
     sessionModal.setAttribute('tabindex', '-1');
     sessionModal.focus();
+    activeSession = window.AssessmentApp.mount(sessionMount, {
+        attemptId,
+        mode,
+        kioskMode: true,
+        inlineResult: true,
+        onExit: closeSession,
+    });
 }
 
 function closeSession() {
-    if (!sessionModal || !sessionFrame) return;
-    sessionFrame.src = 'about:blank';
+    if (!sessionModal || !sessionMount) return;
+    if (activeSession && typeof activeSession.destroy === 'function') {
+        activeSession.destroy();
+    }
+    activeSession = null;
+    sessionMount.innerHTML = '';
     sessionModal.classList.add('hidden');
     sessionModal.setAttribute('aria-hidden', 'true');
     sessionModal.removeAttribute('tabindex');
