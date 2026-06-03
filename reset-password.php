@@ -55,8 +55,8 @@ if ($reset && (int) ($reset['is_valid'] ?? 0) === 1) {
                     <span>Please request a fresh password reset link to continue.</span>
                 </div>
             </div>
-        <?php endif; ?>
-        <form id="resetForm" class="stack" data-message="#message" data-token="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>" data-email="<?php echo $resetEmail; ?>" <?php echo $resetState !== 'valid' ? 'hidden' : ''; ?>>
+        <?php else: ?>
+        <form id="resetForm" class="stack" data-message="#message" data-token="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>" data-email="<?php echo $resetEmail; ?>">
             <input type="hidden" name="token" value="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>">
             <label class="field"><span>Email</span><input id="resetEmail" type="email" name="email" required value="<?php echo $resetEmail; ?>" readonly aria-readonly="true"></label>
             <label class="field"><span>New Password</span><input type="password" name="password" required autocomplete="new-password"></label>
@@ -70,6 +70,7 @@ if ($reset && (int) ($reset['is_valid'] ?? 0) === 1) {
                 <a href="login" class="action-link secondary">Back to Login</a>
             </div>
         </form>
+        <?php endif; ?>
     </main>
     <script src="assets/js/api.js"></script>
     <script src="assets/js/auth.js"></script>
