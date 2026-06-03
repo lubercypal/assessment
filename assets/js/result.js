@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await requireAuth();
         if (resultKioskMode) {
             enableKioskMode();
+            trapHistory();
             const backLink = document.querySelector('#resultBackLink');
             if (backLink) {
                 backLink.classList.add('hidden');
@@ -100,4 +101,16 @@ function enableKioskMode() {
     window.focus();
     document.documentElement.setAttribute('tabindex', '-1');
     document.documentElement.focus();
+}
+
+function trapHistory() {
+    try {
+        history.replaceState({ kiosk: true }, '', window.location.href);
+        history.pushState({ kiosk: true }, '', window.location.href);
+        window.addEventListener('popstate', () => {
+            history.pushState({ kiosk: true }, '', window.location.href);
+        });
+    } catch {
+        // no-op
+    }
 }

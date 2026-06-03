@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (kioskMode) {
             enableKioskMode();
+            trapHistory();
         }
         document.querySelector('#submitTest').addEventListener('click', submitAttempt);
         document.querySelector('#next').addEventListener('click', () => saveAndMove(currentIndex + 1, 'answered'));
@@ -165,7 +166,7 @@ async function submitAttempt() {
         await save('answered').catch(() => {});
         const result = await api(`attempts/${attemptId}/submit`, { method: 'POST', body: '{}' });
         sessionStorage.setItem(`result_${attemptId}`, JSON.stringify(result));
-        window.location.href = `result?attempt=${attemptId}&kiosk=1`;
+        window.location.replace(`result?attempt=${attemptId}&kiosk=1`);
     } finally {
         hideLoader();
     }
@@ -216,4 +217,16 @@ function enableKioskMode() {
     window.focus();
     document.documentElement.setAttribute('tabindex', '-1');
     document.documentElement.focus();
+}
+
+function trapHistory() {
+    try {
+        history.replaceState({ kiosk: true }, '', window.location.href);
+        history.pushState({ kiosk: true }, '', window.location.href);
+        window.addEventListener('popstate', () => {
+            history.pushState({ kiosk: true }, '', window.location.href);
+        });
+    } catch {
+        // no-op
+    }
 }

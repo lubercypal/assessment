@@ -102,3 +102,10 @@ window.addEventListener('keydown', (event) => {
     event.stopPropagation();
     showMessage('Keyboard input is disabled here. Please use mouse clicks only.', 'error', '#assessmentMessage');
 }, true);
+
+window.addEventListener('message', (event) => {
+    if (!event.data || typeof event.data !== 'object') return;
+    if (event.data.type === 'session-close') {
+        closeSession();
+    }
+}, false);
