@@ -120,15 +120,35 @@ final class AuthController
         }
 
         $stmt = db()->prepare(
-            'SELECT id, otp_hash FROM email_otps
-             WHERE user_id = ? AND consumed_at IS NULL AND expires_at > NOW()
+            'SELECT id, otp_hash, expires_at, consumed_at FROM email_otps
+             WHERE user_id = ?
              ORDER BY id DESC LIMIT 1'
         );
         $stmt->execute([$user['id']]);
         $otp = $stmt->fetch();
 
-        if (!$otp || !password_verify((string) $data['otp'], $otp['otp_hash'])) {
-            Response::error('Invalid or expired OTP.', 422);
+        if (!$otp) {
+            Response::error('No OTP request was found. Please re-send the OTP to continue.', 422, [
+                'action' => 'resend-otp',
+                'email' => $email,
+                '_form' => 'No OTP request was found. Please re-send the OTP to continue.',
+            ]);
+        }
+
+        if (!empty($otp['consumed_at']) || strtotime((string) $otp['expires_at']) <= time()) {
+            Response::error('This OTP has expired. Please re-send the OTP to continue.', 422, [
+                'action' => 'resend-otp',
+                'email' => $email,
+                '_form' => 'This OTP has expired. Please re-send the OTP to continue.',
+            ]);
+        }
+
+        if (!password_verify((string) $data['otp'], $otp['otp_hash'])) {
+            Response::error('The OTP you entered is incorrect. Please try again.', 422, [
+                'action' => 'resend-otp',
+                'email' => $email,
+                '_form' => 'The OTP you entered is incorrect. Please try again.',
+            ]);
         }
 
         db()->prepare('UPDATE email_otps SET consumed_at = NOW() WHERE id = ?')->execute([$otp['id']]);
@@ -254,15 +274,19 @@ final class AuthController
 
         $hash = hash('sha256', (string) $data['token']);
         $stmt = db()->prepare(
-            'SELECT id FROM password_resets
-             WHERE user_id = ? AND token_hash = ? AND consumed_at IS NULL AND expires_at > NOW()
+            'SELECT id, expires_at, consumed_at FROM password_resets
+             WHERE user_id = ? AND token_hash = ?
              ORDER BY id DESC LIMIT 1'
         );
         $stmt->execute([$user['id'], $hash]);
         $reset = $stmt->fetch();
 
-        if (!$reset) {
-            Response::error('Invalid or expired reset token.', 422);
+        if (!$reset || !empty($reset['consumed_at']) || strtotime((string) $reset['expires_at']) <= time()) {
+            Response::error('This reset link has expired. Please request a new password reset link.', 422, [
+                'action' => 'forgot-password',
+                'email' => $user['email'] ?? (string) $data['email'],
+                '_form' => 'This reset link has expired. Please request a new password reset link.',
+            ]);
         }
 
         db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([

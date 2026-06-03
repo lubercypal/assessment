@@ -31,8 +31,10 @@
                 <div id="message" class="message"></div>
                 <div class="actions">
                     <button type="submit">Register</button>
-                    <a href="login">Cancel</a>
-                    <a href="verify-email">Verify Email</a>
+                </div>
+                <div class="auth-links">
+                    <a href="login" class="action-link">Cancel</a>
+                    <a href="verify-email" class="action-link">Verify Email</a>
                 </div>
             </form>
         </section>

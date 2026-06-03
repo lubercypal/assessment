@@ -27,7 +27,13 @@ $hasResetToken = !empty($_GET['token']);
             <label class="field"><span>New Password</span><input type="password" name="password" required autocomplete="new-password"></label>
             <label class="field"><span>Confirm Password</span><input type="password" name="password_confirmation" required autocomplete="new-password"></label>
             <div id="message" class="message"></div>
-            <button type="submit">Update Password</button>
+            <div class="actions">
+                <button type="submit">Update Password</button>
+            </div>
+            <div class="auth-links">
+                <a href="login" class="action-link">Back to Login</a>
+                <a href="forgot-password" class="action-link">Request Reset Link</a>
+            </div>
         </form>
     </main>
     <script src="assets/js/api.js"></script>

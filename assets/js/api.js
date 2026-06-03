@@ -43,6 +43,15 @@ function clearFieldErrors(form) {
     form.querySelectorAll('[aria-invalid="true"]').forEach((node) => node.removeAttribute('aria-invalid'));
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function showFieldErrors(form, details = {}) {
     if (!form || !details || typeof details !== 'object') return;
 
@@ -84,18 +93,35 @@ function renderErrorSummary(messageNode, error) {
         .filter(Boolean);
 
     if (error.status === 422 && fields.length > 0) {
+        const action = details.action || '';
+        const email = encodeURIComponent(String(details.email || ''));
+        const actionMap = {
+            login: { label: 'Go to Login', href: 'login' },
+            'verify-email': { label: 'Open Verification', href: email ? `verify-email?email=${email}&locked=1` : 'verify-email' },
+            'forgot-password': { label: 'Request Reset Link', href: 'forgot-password' },
+        };
+        const recovery = actionMap[action];
+        const helperText = action === 'resend-otp'
+            ? 'Use the Re-send OTP button below to continue.'
+            : action === 'forgot-password'
+                ? 'Request a fresh password reset link to continue.'
+                : 'Continue from the linked page.';
+        const listItems = fields.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
         messageNode.innerHTML = `
-            <strong>${error.details._form || 'Please correct the highlighted fields.'}</strong>
+            <strong>${escapeHtml(error.details._form || 'Please correct the highlighted fields.')}</strong>
             <ul class="form-alert-list">
-                ${fields.map((item) => `<li>${item}</li>`).join('')}
+                ${listItems}
             </ul>
+            ${recovery ? `<div class="form-alert-cta"><a class="action-link" href="${escapeHtml(recovery.href)}">${escapeHtml(recovery.label)}</a><span>${escapeHtml(helperText)}</span></div>` : `<div class="form-alert-cta"><span>${escapeHtml(helperText)}</span></div>`}
         `;
         messageNode.className = 'message error form-alert';
+        messageNode.setAttribute('role', 'alert');
         return;
     }
 
     messageNode.textContent = error.message || 'Request failed.';
     messageNode.className = 'message error form-alert';
+    messageNode.setAttribute('role', 'alert');
 }
 
 async function api(route, options = {}) {
