@@ -67,6 +67,20 @@ $session = App\Services\AuthService::requirePage();
         </div>
     </div>
     <div id="sessionKeyboardWarning" class="keyboard-warning hidden">Keyboard input is disabled here. Please use mouse clicks only.</div>
+    <div id="fullscreenExitGuard" class="fullscreen-guard hidden" role="dialog" aria-modal="true" aria-labelledby="fullscreenGuardTitle" aria-describedby="fullscreenGuardText">
+        <div class="fullscreen-guard__card">
+            <h2 id="fullscreenGuardTitle">Fullscreen was exited</h2>
+            <p id="fullscreenGuardText">The assessment must remain fullscreen. If this happened by mistake, return to fullscreen. To end the attempt, confirm below.</p>
+            <label class="check">
+                <input id="fullscreenEndConfirm" type="checkbox">
+                I understand this will submit and end my current attempt.
+            </label>
+            <div class="fullscreen-guard__actions">
+                <button id="returnFullscreen" type="button">Return to Fullscreen</button>
+                <button id="endSessionFromFullscreen" type="button" class="warn" disabled>Submit and End Test</button>
+            </div>
+        </div>
+    </div>
     <template id="assessmentSessionTemplate">
         <main class="page-shell session-shell">
             <header class="topbar">

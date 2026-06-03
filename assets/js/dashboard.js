@@ -7,9 +7,14 @@ const closeSessionBtn = document.querySelector('#closeSession');
 const assessmentSessionTemplate = document.querySelector('#assessmentSessionTemplate');
 const dashboardShell = document.querySelector('#dashboardShell');
 const sessionKeyboardWarning = document.querySelector('#sessionKeyboardWarning');
+const fullscreenExitGuard = document.querySelector('#fullscreenExitGuard');
+const returnFullscreenBtn = document.querySelector('#returnFullscreen');
+const endSessionFromFullscreenBtn = document.querySelector('#endSessionFromFullscreen');
+const fullscreenEndConfirm = document.querySelector('#fullscreenEndConfirm');
 let activeSession = null;
 let sessionWarningTimer = null;
 let sessionIsOpen = false;
+let intentionalFullscreenExit = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     showLoader('Loading dashboard...');
@@ -30,6 +35,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         closeSessionBtn?.addEventListener('click', closeSession);
+        returnFullscreenBtn?.addEventListener('click', returnToFullscreen);
+        fullscreenEndConfirm?.addEventListener('change', () => {
+            if (endSessionFromFullscreenBtn) {
+                endSessionFromFullscreenBtn.disabled = !fullscreenEndConfirm.checked;
+            }
+        });
+        endSessionFromFullscreenBtn?.addEventListener('click', submitAndEndAfterFullscreenExit);
     } finally {
         hideLoader();
     }
@@ -84,6 +96,8 @@ function openSessionShell(mode) {
         ? 'Sample questions with immediate feedback.'
         : 'Formal assessment in progress. Use mouse clicks only.';
     sessionIsOpen = true;
+    intentionalFullscreenExit = false;
+    hideFullscreenExitGuard();
     document.body.classList.add('session-open');
     dashboardShell?.setAttribute('inert', '');
     dashboardShell?.setAttribute('aria-hidden', 'true');
@@ -103,9 +117,7 @@ function openSessionShell(mode) {
     sessionModal.setAttribute('tabindex', '-1');
     sessionModal.focus();
 
-    if (sessionModal.requestFullscreen && !document.fullscreenElement) {
-        sessionModal.requestFullscreen().catch(() => {});
-    }
+    requestSessionFullscreen();
 }
 
 function mountAssessmentSession(attemptId, mode) {
@@ -131,6 +143,8 @@ function closeSession() {
     activeSession = null;
     sessionMount.innerHTML = '';
     sessionIsOpen = false;
+    intentionalFullscreenExit = true;
+    hideFullscreenExitGuard();
     sessionModal.classList.add('hidden');
     sessionModal.setAttribute('aria-hidden', 'true');
     sessionModal.removeAttribute('tabindex');
@@ -147,7 +161,9 @@ window.addEventListener('keydown', (event) => {
     if (!sessionModal || sessionModal.classList.contains('hidden')) return;
     event.preventDefault();
     event.stopPropagation();
-    showSessionKeyboardWarning();
+    showSessionKeyboardWarning(event.key === 'Escape'
+        ? 'Escape can exit fullscreen. Use the on-screen buttons to continue safely.'
+        : 'Keyboard input is disabled here. Please use mouse clicks only.');
 }, true);
 
 function showSessionKeyboardWarning(text = 'Keyboard input is disabled here. Please use mouse clicks only.') {
@@ -167,6 +183,75 @@ window.addEventListener('beforeunload', (event) => {
 });
 
 document.addEventListener('fullscreenchange', () => {
-    if (!sessionIsOpen || document.fullscreenElement) return;
-    showSessionKeyboardWarning('Please stay in fullscreen during the assessment.');
+    if (!sessionIsOpen || intentionalFullscreenExit) return;
+    if (document.fullscreenElement) {
+        hideFullscreenExitGuard();
+        return;
+    }
+    showFullscreenExitGuard();
 });
+
+function requestSessionFullscreen() {
+    if (!sessionModal?.requestFullscreen || document.fullscreenElement) {
+        return Promise.resolve(Boolean(document.fullscreenElement));
+    }
+
+    return sessionModal.requestFullscreen()
+        .then(() => true)
+        .catch(() => {
+            showSessionKeyboardWarning('Fullscreen could not start. Please use the Return to Fullscreen button.');
+            return false;
+        });
+}
+
+async function returnToFullscreen() {
+    const restored = await requestSessionFullscreen();
+    if (restored) {
+        hideFullscreenExitGuard();
+        sessionModal?.focus();
+    }
+}
+
+function showFullscreenExitGuard() {
+    if (!fullscreenExitGuard) return;
+    showSessionKeyboardWarning('Fullscreen was exited. Please confirm how to continue.');
+    fullscreenExitGuard.classList.remove('hidden');
+    fullscreenExitGuard.setAttribute('aria-hidden', 'false');
+    if (fullscreenEndConfirm) {
+        fullscreenEndConfirm.checked = false;
+    }
+    if (endSessionFromFullscreenBtn) {
+        endSessionFromFullscreenBtn.disabled = true;
+        endSessionFromFullscreenBtn.textContent = 'Submit and End Test';
+    }
+    returnFullscreenBtn?.focus();
+}
+
+function hideFullscreenExitGuard() {
+    if (!fullscreenExitGuard) return;
+    fullscreenExitGuard.classList.add('hidden');
+    fullscreenExitGuard.setAttribute('aria-hidden', 'true');
+}
+
+async function submitAndEndAfterFullscreenExit() {
+    if (!fullscreenEndConfirm?.checked || !endSessionFromFullscreenBtn) return;
+    endSessionFromFullscreenBtn.disabled = true;
+    returnFullscreenBtn && (returnFullscreenBtn.disabled = true);
+    endSessionFromFullscreenBtn.textContent = 'Submitting...';
+
+    try {
+        if (activeSession && typeof activeSession.submitAndEnd === 'function') {
+            await activeSession.submitAndEnd();
+            hideFullscreenExitGuard();
+            showSessionKeyboardWarning('Attempt submitted. Review your result, then use Exit.');
+        } else {
+            closeSession();
+        }
+    } catch {
+        showSessionKeyboardWarning('Unable to submit right now. Please return to fullscreen and try again.');
+        endSessionFromFullscreenBtn.textContent = 'Submit and End Test';
+        endSessionFromFullscreenBtn.disabled = false;
+    } finally {
+        returnFullscreenBtn && (returnFullscreenBtn.disabled = false);
+    }
+}

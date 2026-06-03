@@ -515,13 +515,51 @@ button:disabled {
     left: 50%;
     top: 18px;
     transform: translateX(-50%);
-    z-index: 10001;
+    z-index: 10003;
     background: rgba(180, 35, 24, 0.96);
     color: white;
     padding: 12px 16px;
     border-radius: 8px;
     box-shadow: 0 14px 34px rgba(23, 32, 51, 0.18);
     font-weight: 700;
+}
+
+.fullscreen-guard {
+    position: fixed;
+    inset: 0;
+    z-index: 10002;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(9, 14, 24, 0.62);
+}
+
+.fullscreen-guard__card {
+    width: min(620px, 100%);
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 24px 70px rgba(23, 32, 51, 0.24);
+}
+
+.fullscreen-guard__card h2 {
+    margin-bottom: 10px;
+}
+
+.fullscreen-guard__card p {
+    color: var(--muted);
+}
+
+.fullscreen-guard__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.fullscreen-guard__actions > * {
+    width: 100%;
 }
 
 body.session-open {
@@ -626,5 +664,13 @@ body.session-open {
 
     .session-modal__bar {
         padding: 12px 14px;
+    }
+
+    .fullscreen-guard__card {
+        padding: 20px;
+    }
+
+    .fullscreen-guard__actions {
+        grid-template-columns: 1fr;
     }
 }

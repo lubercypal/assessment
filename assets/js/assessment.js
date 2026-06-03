@@ -30,6 +30,7 @@
             let warningNode = null;
             let ownsWarningNode = false;
             let warningTimer = null;
+            let isSubmitting = false;
 
             const on = (target, event, handler, options) => {
                 target.addEventListener(event, handler, options);
@@ -302,6 +303,8 @@
             }
 
             async function submitAttempt() {
+                if (isSubmitting) return null;
+                isSubmitting = true;
                 showBusy('Submitting assessment...');
                 try {
                     await save('answered').catch(() => {});
@@ -313,7 +316,9 @@
                     } else {
                         window.location.replace(`result?attempt=${state.attemptId}`);
                     }
+                    return result;
                 } finally {
+                    isSubmitting = false;
                     hideBusy();
                 }
             }
@@ -353,6 +358,7 @@
             return {
                 destroy() {
                     stopTimer();
+                    clearTimeout(warningTimer);
                     cleanup.forEach((fn) => fn());
                     if (warningNode) {
                         if (ownsWarningNode) {
@@ -362,6 +368,9 @@
                         }
                         warningNode = null;
                     }
+                },
+                submitAndEnd() {
+                    return submitAttempt();
                 },
             };
         },
