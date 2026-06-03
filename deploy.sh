@@ -12,7 +12,7 @@ fi
 git commit -m "$msg" || exit 1
 git push || exit 1
 
-ssh assessment 'cd ~/domains/assessment.netcascade.in/public_html && git pull' || exit 1
+ssh assessment 'cd ~/domains/assessment.netcascade.in/public_html && git fetch origin && git checkout develop && git reset --hard origin/develop' || exit 1
 
 echo ""
 echo "✅ Deployment Completed Successfully"
