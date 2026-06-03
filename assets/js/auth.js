@@ -20,12 +20,46 @@ function startCooldown(button, seconds) {
     }, 1000);
 }
 
+function readQuery(name) {
+    return new URLSearchParams(window.location.search).get(name) || '';
+}
+
+function showPageNotice() {
+    const notice = readQuery('notice');
+    const message = document.querySelector('#message');
+    if (!notice || !message || !document.querySelector('#loginForm')) return;
+
+    const notices = {
+        already_verified: 'This email is already verified. Please log in.',
+        verify_later: 'Your account is not verified yet. You can verify it now or later from the verification page.',
+    };
+
+    if (notices[notice]) {
+        message.textContent = notices[notice];
+        message.className = 'message error';
+    }
+}
+
 bindForm('#registerForm', async (data) => {
     data.terms = document.querySelector('#terms').checked ? '1' : '';
-    const result = await api('auth/register', { method: 'POST', body: JSON.stringify(data) });
-    const nextEmail = result.email || data.email;
-    sessionStorage.setItem(otpKey(nextEmail), String(Date.now()));
-    window.location.href = `verify-email?email=${encodeURIComponent(nextEmail)}`;
+    try {
+        const result = await api('auth/register', { method: 'POST', body: JSON.stringify(data) });
+        const nextEmail = result.email || data.email;
+        sessionStorage.setItem(otpKey(nextEmail), String(Date.now()));
+        window.location.href = `verify-email?email=${encodeURIComponent(nextEmail)}`;
+    } catch (error) {
+        if (error.details?.action === 'login') {
+            window.location.href = 'login?notice=already_verified';
+            return;
+        }
+        if (error.details?.action === 'verify-email') {
+            const nextEmail = error.details?.email || data.email;
+            sessionStorage.setItem(otpKey(nextEmail), String(Date.now()));
+            window.location.href = `verify-email?email=${encodeURIComponent(nextEmail)}`;
+            return;
+        }
+        throw error;
+    }
 });
 
 bindForm('#otpForm', async (data) => {
@@ -106,3 +140,5 @@ bindForm('#resetForm', async (data) => {
     showMessage('Password updated. Redirecting to login...');
     setTimeout(() => window.location.href = 'login', 800);
 });
+
+showPageNotice();

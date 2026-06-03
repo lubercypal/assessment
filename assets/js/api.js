@@ -37,6 +37,43 @@ function hideLoader() {
     loader.classList.add('hidden');
 }
 
+function clearFieldErrors(form) {
+    if (!form) return;
+    form.querySelectorAll('.field-error').forEach((node) => node.remove());
+    form.querySelectorAll('[aria-invalid="true"]').forEach((node) => node.removeAttribute('aria-invalid'));
+}
+
+function showFieldErrors(form, details = {}) {
+    if (!form || !details || typeof details !== 'object') return;
+
+    Object.entries(details).forEach(([field, value]) => {
+        if (field === '_form' || field === 'action' || field === 'retry_after_seconds') {
+            return;
+        }
+
+        const input = form.querySelector(`[name="${CSS.escape(field)}"]`);
+        if (!input) return;
+
+        input.setAttribute('aria-invalid', 'true');
+        const message = Array.isArray(value) ? value.join(' ') : String(value || '');
+        const container = input.closest('.field') || input.parentElement;
+        if (!container) return;
+
+        const error = document.createElement('p');
+        error.className = 'field-error';
+        error.textContent = message;
+        container.appendChild(error);
+    });
+}
+
+function formMessageFromError(error) {
+    if (!error) return 'Request failed.';
+    if (error.status === 422 && error.details && Object.keys(error.details).length > 0) {
+        return error.details._form || 'Please correct the highlighted fields.';
+    }
+    return error.message || 'Request failed.';
+}
+
 async function api(route, options = {}) {
     const headers = {
         'Content-Type': 'application/json',
@@ -77,14 +114,19 @@ function bindForm(selector, handler) {
             overlay.classList.remove('hidden');
         }
         button && (button.disabled = true);
-        message && (message.className = 'message') && (message.textContent = 'Working...');
+        clearFieldErrors(form);
+        if (message) {
+            message.className = 'message';
+            message.textContent = 'Working...';
+        }
         try {
             await handler(Object.fromEntries(new FormData(form).entries()), form);
         } catch (error) {
             if (message) {
-                message.textContent = error.message;
+                message.textContent = formMessageFromError(error);
                 message.className = 'message error';
             }
+            showFieldErrors(form, error.details);
         } finally {
             button && (button.disabled = false);
             if (overlay) {

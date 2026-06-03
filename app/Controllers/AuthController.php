@@ -37,16 +37,11 @@ final class AuthController
             Response::error('Validation failed.', 422, $errors);
         }
 
-        $exists = db()->prepare('SELECT id FROM users WHERE email = ?');
-        $exists->execute([$email]);
-        if ($exists->fetch()) {
-            Response::error('Email is already registered.', 409);
-        }
-
         $existing = $this->findUserByEmail($email);
         if ($existing && $existing['email_verified_at']) {
             Response::error('This email is already verified. Please log in.', 409, [
                 'action' => 'login',
+                '_form' => 'This email is already verified. Please log in.',
             ]);
         }
 
@@ -57,6 +52,7 @@ final class AuthController
                     'retry_after_seconds' => $result['retry_after_seconds'],
                     'action' => 'verify-email',
                     'email' => $email,
+                    '_form' => $result['message'],
                 ]);
             }
 

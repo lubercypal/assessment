@@ -252,6 +252,19 @@ button:disabled {
     color: var(--ok);
 }
 
+.field-error {
+    margin: -2px 0 0;
+    color: var(--danger);
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.field input[aria-invalid="true"],
+.field select[aria-invalid="true"] {
+    border-color: var(--danger);
+    outline-color: rgba(180, 35, 24, 0.18);
+}
+
 .hidden {
     display: none !important;
 }
