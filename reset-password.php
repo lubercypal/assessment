@@ -6,7 +6,28 @@ if ($resetToken === '') {
     exit;
 }
 
+$resetTokenHash = hash('sha256', $resetToken);
+$resetState = 'invalid';
+$resetNotice = 'This password reset link has expired. Please request a new password reset link.';
 $resetEmail = htmlspecialchars(strtolower(trim((string) ($_GET['email'] ?? ''))), ENT_QUOTES);
+
+$stmt = db()->prepare(
+    'SELECT pr.id, pr.created_at, pr.consumed_at, u.email,
+            CASE WHEN pr.consumed_at IS NULL AND TIMESTAMPDIFF(SECOND, pr.created_at, NOW()) < 1800 THEN 1 ELSE 0 END AS is_valid
+     FROM password_resets pr
+     INNER JOIN users u ON u.id = pr.user_id
+     WHERE pr.token_hash = ?
+     ORDER BY pr.id DESC LIMIT 1'
+);
+$stmt->execute([$resetTokenHash]);
+$reset = $stmt->fetch();
+
+if ($reset && (int) ($reset['is_valid'] ?? 0) === 1) {
+    $resetState = 'valid';
+    $resetEmail = htmlspecialchars((string) $reset['email'], ENT_QUOTES);
+} elseif (!$reset) {
+    $resetNotice = 'This password reset link is missing or invalid. Please request a new password reset link.';
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -26,8 +47,16 @@ $resetEmail = htmlspecialchars(strtolower(trim((string) ($_GET['email'] ?? '')))
     </div>
     <main class="auth-shell panel">
         <h1>Set New Password</h1>
-        <div id="pageNotice" class="message error form-alert" role="alert" hidden></div>
-        <form id="resetForm" class="stack" data-message="#message" data-token="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>" data-email="<?php echo $resetEmail; ?>">
+        <?php if ($resetState !== 'valid'): ?>
+            <div id="pageNotice" class="message error form-alert" role="alert">
+                <strong><?php echo htmlspecialchars($resetNotice, ENT_QUOTES); ?></strong>
+                <div class="form-alert-cta">
+                    <a class="action-link secondary" href="forgot-password">Request Reset Link</a>
+                    <span>Please request a fresh password reset link to continue.</span>
+                </div>
+            </div>
+        <?php endif; ?>
+        <form id="resetForm" class="stack" data-message="#message" data-token="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>" data-email="<?php echo $resetEmail; ?>" <?php echo $resetState !== 'valid' ? 'hidden' : ''; ?>>
             <input type="hidden" name="token" value="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>">
             <label class="field"><span>Email</span><input id="resetEmail" type="email" name="email" required value="<?php echo $resetEmail; ?>" readonly aria-readonly="true"></label>
             <label class="field"><span>New Password</span><input type="password" name="password" required autocomplete="new-password"></label>
