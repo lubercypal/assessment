@@ -16,7 +16,7 @@
         </div>
     </div>
     <main class="auth-shell panel">
-        <h1>Assessment Loginrakesh</h1>
+        <h1>Assessment Login</h1>
         <p>Sign in with your verified email to continue.</p>
         <form id="loginForm" class="stack">
             <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="email"></label>

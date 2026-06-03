@@ -240,6 +240,14 @@ function bindForm(selector, handler) {
             await handler(Object.fromEntries(new FormData(form).entries()), form);
             succeeded = true;
         } catch (error) {
+            if (selector === '#loginForm' && error.status === 429 && typeof showLoginThrottleCountdown === 'function') {
+                if (message) {
+                    message.textContent = '';
+                    message.className = 'message';
+                }
+                showLoginThrottleCountdown(error.details?.retry_after_seconds || 0);
+                return;
+            }
             renderErrorSummary(message, error);
             showFieldErrors(form, error.details);
         } finally {
