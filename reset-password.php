@@ -1,4 +1,8 @@
 <?php require_once __DIR__ . '/app/bootstrap.php'; ?>
+<?php
+$resetEmail = htmlspecialchars($_GET['email'] ?? '', ENT_QUOTES);
+$hasResetToken = !empty($_GET['token']);
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -19,7 +23,7 @@
         <h1>Set New Password</h1>
         <form id="resetForm" class="stack">
             <input type="hidden" name="token" value="<?php echo htmlspecialchars($_GET['token'] ?? '', ENT_QUOTES); ?>">
-            <label class="field"><span>Email</span><input type="email" name="email" required value="<?php echo htmlspecialchars($_GET['email'] ?? '', ENT_QUOTES); ?>"></label>
+            <label class="field"><span>Email</span><input type="email" name="email" required value="<?php echo $resetEmail; ?>" <?php echo $hasResetToken ? 'readonly aria-readonly="true"' : ''; ?>></label>
             <label class="field"><span>New Password</span><input type="password" name="password" required autocomplete="new-password"></label>
             <label class="field"><span>Confirm Password</span><input type="password" name="password_confirmation" required autocomplete="new-password"></label>
             <div id="message" class="message"></div>

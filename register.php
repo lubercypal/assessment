@@ -27,7 +27,7 @@
                     <label class="field"><span>Password</span><input type="password" name="password" required autocomplete="new-password"></label>
                     <label class="field"><span>Confirm Password</span><input type="password" name="password_confirmation" required autocomplete="new-password"></label>
                 </div>
-                <label class="check"><input id="terms" type="checkbox" required> I accept the consent and terms.</label>
+                <label class="check"><input id="terms" type="checkbox" required> I accept the consent and terms. <a href="terms">Read here</a></label>
                 <div id="message" class="message"></div>
                 <div class="actions">
                     <button type="submit">Register</button>

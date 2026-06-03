@@ -74,6 +74,30 @@ function formMessageFromError(error) {
     return error.message || 'Request failed.';
 }
 
+function renderErrorSummary(messageNode, error) {
+    if (!messageNode || !error) return;
+
+    const details = error.details || {};
+    const fields = Object.entries(details)
+        .filter(([key]) => !['_form', 'action', 'retry_after_seconds'].includes(key))
+        .map(([, value]) => Array.isArray(value) ? value.join(' ') : String(value || ''))
+        .filter(Boolean);
+
+    if (error.status === 422 && fields.length > 0) {
+        messageNode.innerHTML = `
+            <strong>${error.details._form || 'Please correct the highlighted fields.'}</strong>
+            <ul class="form-alert-list">
+                ${fields.map((item) => `<li>${item}</li>`).join('')}
+            </ul>
+        `;
+        messageNode.className = 'message error form-alert';
+        return;
+    }
+
+    messageNode.textContent = error.message || 'Request failed.';
+    messageNode.className = 'message error form-alert';
+}
+
 async function api(route, options = {}) {
     const headers = {
         'Content-Type': 'application/json',
@@ -122,10 +146,7 @@ function bindForm(selector, handler) {
         try {
             await handler(Object.fromEntries(new FormData(form).entries()), form);
         } catch (error) {
-            if (message) {
-                message.textContent = formMessageFromError(error);
-                message.className = 'message error';
-            }
+            renderErrorSummary(message, error);
             showFieldErrors(form, error.details);
         } finally {
             button && (button.disabled = false);

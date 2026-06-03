@@ -46,7 +46,7 @@ bindForm('#registerForm', async (data) => {
         const result = await api('auth/register', { method: 'POST', body: JSON.stringify(data) });
         const nextEmail = result.email || data.email;
         sessionStorage.setItem(otpKey(nextEmail), String(Date.now()));
-        window.location.href = `verify-email?email=${encodeURIComponent(nextEmail)}`;
+        window.location.href = `verify-email?email=${encodeURIComponent(nextEmail)}&locked=1`;
     } catch (error) {
         if (error.details?.action === 'login') {
             window.location.href = 'login?notice=already_verified';
@@ -55,7 +55,7 @@ bindForm('#registerForm', async (data) => {
         if (error.details?.action === 'verify-email') {
             const nextEmail = error.details?.email || data.email;
             sessionStorage.setItem(otpKey(nextEmail), String(Date.now()));
-            window.location.href = `verify-email?email=${encodeURIComponent(nextEmail)}`;
+            window.location.href = `verify-email?email=${encodeURIComponent(nextEmail)}&locked=1`;
             return;
         }
         throw error;

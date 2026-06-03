@@ -163,6 +163,12 @@ select:focus {
     border-color: var(--brand);
 }
 
+input[readonly] {
+    background: #f8fafc;
+    color: #4a5568;
+    cursor: not-allowed;
+}
+
 .check {
     display: flex;
     align-items: flex-start;
@@ -207,6 +213,10 @@ select:focus {
     background: white;
     color: var(--text);
     text-align: center;
+}
+
+.action-link:hover {
+    border-color: var(--brand);
 }
 
 .verify-actions .action-link {
@@ -263,6 +273,26 @@ button:disabled {
 .field select[aria-invalid="true"] {
     border-color: var(--danger);
     outline-color: rgba(180, 35, 24, 0.18);
+}
+
+.form-alert {
+    padding: 14px 16px;
+    border: 1px solid rgba(180, 35, 24, 0.22);
+    border-left-width: 4px;
+    border-radius: 10px;
+    background: rgba(180, 35, 24, 0.06);
+}
+
+.form-alert strong {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.form-alert-list {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 6px;
 }
 
 .hidden {
