@@ -27,11 +27,14 @@ function readQuery(name) {
 function showPageNotice() {
     const notice = readQuery('notice');
     const message = document.querySelector('#message');
-    if (!notice || !message || !document.querySelector('#loginForm')) return;
+    const loginForm = document.querySelector('#loginForm');
+    const forgotForm = document.querySelector('#forgotForm');
+    if (!notice || !message || (!loginForm && !forgotForm)) return;
 
     const notices = {
         already_verified: 'This email is already verified. Please log in.',
         verify_later: 'Your account is not verified yet. You can verify it now or later from the verification page.',
+        reset_link_required: 'Please request a new password reset link to continue.',
     };
 
     if (notices[notice]) {
@@ -46,30 +49,8 @@ async function checkResetLink() {
 
     const token = (form.dataset.token || '').trim();
     const email = (form.dataset.email || '').trim();
-    const notice = document.querySelector('#pageNotice');
     if (!token) {
         return;
-    }
-
-    try {
-        await api('auth/reset-link-status', {
-            method: 'POST',
-            body: JSON.stringify({ email, token }),
-        });
-    } catch (error) {
-        if (notice) {
-            renderErrorSummary(notice, error);
-        } else {
-            showMessage(error.message, 'error', '#message');
-        }
-        form.querySelectorAll('input, button, a').forEach((node) => {
-            if (node.tagName === 'A') return;
-            node.disabled = true;
-        });
-        form.classList.add('hidden');
-        if (notice) {
-            notice.classList.remove('hidden');
-        }
     }
 }
 
@@ -175,4 +156,3 @@ bindForm('#resetForm', async (data) => {
 });
 
 showPageNotice();
-checkResetLink();
