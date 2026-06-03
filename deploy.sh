@@ -17,6 +17,7 @@ fi
 ssh assessment "
 cd ~/domains/assessment.netcascade.in/public_html &&
 git fetch origin &&
+git reset --hard &&
 git checkout $branch &&
 git reset --hard origin/$branch
 "
