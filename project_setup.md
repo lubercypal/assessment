@@ -1,95 +1,279 @@
 Project: assessment.netcascade.in
 
-Hosting: Hostinger Shared Hosting
-SSH Access: Enabled
-PHP: 8.1
-Composer: Installed
-Project Root:
-~/domains/assessment.netcascade.in/public_html
+Last Updated: 2026-06-03
 
-Current Goal:
-Build authentication first:
-- Login
-- JWT
-- Session Control
-- OTP Verification
-- Password Reset
+**Project Overview**
+assessment.netcascade.in is a PHP/MySQL assessment platform for student registration, email verification, login, password recovery, and timed assessments. The system supports demo mode with instant feedback and assessment mode with controlled navigation, answer saving, timer enforcement, and final scoring.
 
-Tech Stack:
-- PHP
-- MySQL
-- REST API
-- JWT
-- HTML/JS
+The project is deployed on Hostinger shared hosting and uses extensionless URLs, JWT-based browser authentication, DB-backed sessions, CSRF protection for state-changing requests, and SMTP/OTP email delivery.
 
-Current Status:
-- Composer available
-- Project structure created
-- Authentication REST APIs created
-- JWT bearer auth with DB-backed sessions created
-- JWT also stored in HttpOnly SameSite cookies for browser auth
-- Server-side protected page gates created
-- CSRF protection created for authenticated POST APIs
-- Auth rate limiting created
-- Security event logging created
-- CSP, HSTS, and browser security headers created
-- Email OTP verification created
-- Password reset flow created
-- Question bank, attempts, responses, and result schema created
-- Initial login, registration, dashboard, assessment, and result frontend created
+**Business Requirements Document**
+Goal:
+- Provide a secure student assessment portal with registration, email verification, login, dashboard, and test-taking flow.
 
-Project Structure:
-- `api/index.php` - REST API router
-- `app/Core` - request, response, validation, JWT helpers
-- `app/Controllers` - authentication and assessment controllers
-- `app/Services` - auth session and email helpers
-- `config/env.example.php` - copy to `config/env.php` and fill production values
-- `database/schema.sql` - MySQL table structure
-- `database/seed.sql` - starter subjects, topics, and sample demo questions
-- `assets/css`, `assets/js` - frontend styles and browser logic
+Primary user journeys:
+- Register with name, email, mobile, password, and terms acceptance.
+- Verify the email by OTP before login.
+- Log in and access dashboard.
+- Start a demo assessment with instant feedback and explanations.
+- Start an actual assessment with timer, randomized questions, answer saving, review/skip controls, and final scoring.
+- Reset forgotten passwords securely by email link.
 
-Setup Steps:
-1. Copy `config/env.example.php` to `config/env.php`.
-2. Set a long random `jwt_secret`.
-3. Fill Hostinger MySQL credentials in `config/env.php`.
-4. Import `database/schema.sql`.
-5. Import `database/seed.sql` for starter data.
-6. Confirm Hostinger mail delivery works for OTP and reset messages.
+Functional requirements:
+- Duplicate email checks during registration.
+- Mandatory field validation across all forms.
+- Password policy enforcement.
+- OTP verification over email.
+- Password reset by email link.
+- Dynamic question loading from the database.
+- Randomized question order for assessments.
+- Immediate response persistence before moving to the next question.
+- Demo mode must show selected answer, correct answer, and explanation immediately.
+- Assessment mode must hide answers until final submission.
+- Final result must show attempted, not attempted, review count, time used, and score.
 
-Local Run Steps:
-1. For local HTTP testing, set `app_url` to `http://localhost:8000`.
-2. For local HTTP testing, set `cookie_secure` to `false`.
-3. Start PHP from the project root:
-   `php -S localhost:8000 router.php`
-4. Open `http://localhost:8000/login`.
-5. For production HTTPS, set `app_url` to `https://assessment.netcascade.in` and `cookie_secure` to `true`.
+Non-functional requirements:
+- Secure auth and session handling.
+- Route protection for authenticated pages.
+- Mobile and tablet responsive layouts.
+- Production-safe logging and error handling.
+- Clean URLs without visible `.php` extensions.
 
-API Routes:
+**System Architecture Documentation**
+High-level architecture:
+- Frontend: PHP-rendered pages plus browser JavaScript.
+- Backend: PHP REST API router in `api/index.php`.
+- Database: MySQL with normalized auth, assessment, and logging tables.
+- Mail: SMTP or local log driver through `app/Services/Mailer.php`.
+- Auth: JWT plus DB-backed sessions stored in HttpOnly cookies for browser flows.
+
+Core request flow:
+- Public page loads render PHP views directly.
+- Browser forms submit to `/api/...` routes using `assets/js/api.js`.
+- API requests are routed through `api/index.php`.
+- Authenticated POST APIs validate CSRF headers and session cookies.
+- Protected pages call `AuthService::requirePage()` before rendering.
+
+Important services:
+- `app/Services/AuthService.php` handles sessions, cookies, CSRF, page protection, logout.
+- `app/Services/Mailer.php` sends OTP and reset emails.
+- `app/Services/RateLimiter.php` limits auth abuse.
+- `app/Services/ErrorLogger.php` writes structured app logs.
+- `app/Services/SecurityLog.php` records auth/security events.
+
+Security model:
+- JWT is stored in `ASSESSMENT_AUTH` HttpOnly cookie for browser auth.
+- CSRF token is stored in `ASSESSMENT_CSRF` cookie and validated on protected POST calls.
+- Rate limiting exists for register, login, OTP resend, password reset, and verification attempts.
+- Security events are logged into the database.
+- Security headers include CSP, HSTS, and other browser hardening headers.
+
+**Database Documentation**
+Database name:
+- `u426922330_htb_assessment`
+
+Schema file:
+- `database/schema.sql`
+
+Seed file:
+- `database/seed.sql`
+
+Main tables:
+- `users`
+- `user_sessions`
+- `rate_limits`
+- `security_events`
+- `email_otps`
+- `password_resets`
+- `categories`
+- `topics`
+- `questions`
+- `question_options`
+- `assessment_attempts`
+- `assessment_responses`
+
+Purpose of key tables:
+- `users`: student identity, password hash, verification timestamp, terms acceptance.
+- `user_sessions`: DB-backed session lifecycle and revocation.
+- `email_otps`: OTP hashes, expiry, and consumption state.
+- `password_resets`: reset token hashes, expiry, and consumption state.
+- `rate_limits`: anti-abuse tracking for auth actions.
+- `security_events`: audit trail for register, login, verification, logout, reset.
+- `categories` and `topics`: question taxonomy.
+- `questions` and `question_options`: question bank and options.
+- `assessment_attempts`: attempt metadata, mode, timing, score.
+- `assessment_responses`: saved answers, status, timestamps.
+
+Seeded content:
+- Basic starter categories, topics, and sample demo questions are seeded for the initial assessment experience.
+
+**API Documentation**
+Base:
+- `/api/...`
+
+Authentication endpoints:
 - `POST /api/auth/register`
 - `POST /api/auth/verify-email`
 - `POST /api/auth/resend-otp`
 - `POST /api/auth/login`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
+- `POST /api/auth/reset-link-status`
 - `GET /api/auth/me`
 - `POST /api/auth/logout`
+
+Assessment endpoints:
 - `GET /api/categories`
-- `GET /api/topics?category_id=1`
+- `GET /api/topics?category_id=...`
 - `POST /api/attempts/start`
-- `GET /api/attempts/{id}/question?index=0`
+- `GET /api/attempts/{id}/question?index=...`
 - `POST /api/attempts/{id}/answer`
 - `POST /api/attempts/{id}/submit`
 - `GET /api/attempts/{id}/result`
 
-Clean URL Rules:
-- Public page links use `/login`, `/register`, `/forgot-password`, `/reset-password`, `/dashboard`, `/assessment`, and `/result`.
-- Direct `.php` page requests redirect to the extensionless URL.
-- Protected pages call `AuthService::requirePage()` before rendering HTML; invalid or expired sessions redirect to `/login`.
-- After page load, `auth/me` also validates the JWT and DB session; invalid or expired sessions are cleared and redirected to `/login`.
+API behavior:
+- JSON in, JSON out.
+- Validation failures return 422 with field-level details.
+- Auth/session failures return 401/403-style responses where applicable.
+- Expired reset links and OTP issues return recovery-oriented messages and actions.
 
-Security Notes:
-- Browser sessions use an HttpOnly `ASSESSMENT_AUTH` cookie so JavaScript cannot read the JWT.
-- Authenticated POST requests require the `X-CSRF-Token` header matching the `ASSESSMENT_CSRF` cookie and DB session hash.
-- REST APIs still support `Authorization: Bearer <token>` for API clients, but browser auth should use cookies.
-- Login, OTP, registration, and password reset endpoints are rate limited.
-- Auth events are recorded in `security_events`.
+**Feature Completion Tracker**
+Completed:
+- Student registration
+- Email OTP verification
+- Login
+- Forgot password
+- Password reset by email link
+- JWT auth
+- DB-backed sessions
+- Protected page access control
+- CSRF protection for protected POST APIs
+- Rate limiting for auth endpoints
+- Security logging
+- Error logging
+- Clean URLs
+- Dashboard entry flow
+- Demo assessment flow
+- Assessment attempt flow
+- Question saving and submission
+- Result page flow
+- Mobile and tablet responsive auth UI
+
+In progress / polish:
+- Assessment question bank expansion
+- More seed questions and topics
+- Final UX tuning for assessment screens
+- Additional admin or content management tools
+
+**Development Log / Changelog**
+2026-06-03:
+- Added server-side page protection for authenticated views.
+- Moved browser auth to HttpOnly cookie flow.
+- Added CSRF validation for protected POST APIs.
+- Added DB-backed session validation and logout revocation.
+- Added structured app logging and security event logging.
+- Added rate limiting for auth actions.
+- Added OTP resend cooldown and recovery messaging.
+- Added password reset flow with token validation and recovery states.
+- Added responsive auth page layouts and cleaner helper action rows.
+- Added terms page and cleaner registration flow messaging.
+
+Earlier work:
+- Built API router and initial controller structure.
+- Created schema and seed files.
+- Created initial frontend pages for login, registration, dashboard, assessment, and result.
+
+**Decision Log**
+- Chosen stack: PHP, MySQL, HTML, JavaScript, JWT, REST APIs.
+- Chosen browser auth model: HttpOnly cookie for JWT, not localStorage.
+- Chosen session model: JWT plus DB session record for server-side revocation.
+- Chosen route style: extensionless URLs with `.php` redirects to canonical paths.
+- Chosen deployment style: Hostinger shared hosting with SFTP upload and manual env file.
+- Chosen logging style: separate app error log and mail error log.
+- Chosen mail flow: OTP and reset emails sent through `Mailer.php` with environment-driven transport.
+- Chosen reset flow: token-based password reset, token checked against database, expiry enforced server-side.
+- Chosen UI behavior: explicit recovery messages for expired OTP and reset links.
+
+**Known Issues & Technical Debt**
+- No admin UI yet for managing categories, topics, or question bank content.
+- Seed data is minimal and should be expanded for real assessment usage.
+- `config/env.php` is intentionally not tracked and must be managed carefully per environment.
+- SMTP delivery depends on mailbox policy and provider settings.
+- The current project does not yet include analytics, reports, or candidate management modules.
+- Some auth screens and recovery states may still need fine visual refinement after content changes.
+- Final production testing should still include browser-based smoke tests and mail delivery checks.
+
+**Future Roadmap / Backlog**
+- Admin module for question authoring and taxonomy management.
+- Bulk import for questions and options.
+- Candidate listing and assessment analytics.
+- Attempt review and export reports.
+- Better audit dashboards for security events.
+- More granular permission roles if an admin panel is added.
+- Extended seed data and richer demo mode content.
+- Production observability improvements.
+- Automated test coverage for auth and assessment flows.
+
+**Environment & Deployment Guide**
+Hosting:
+- Hostinger shared hosting
+
+Project root on server:
+- `~/domains/assessment.netcascade.in/public_html`
+
+Production setup steps:
+1. Upload project files to `public_html`.
+2. Create `config/env.php` manually on the server.
+3. Set production values in `env.php`.
+4. Import `database/schema.sql`.
+5. Import `database/seed.sql`.
+6. Confirm SMTP settings for OTP and reset mail.
+7. Confirm `.htaccess` is uploaded.
+8. Test `/login`, `/register`, `/forgot-password`, `/reset-password`, `/dashboard`.
+
+Local setup steps:
+1. Set `app_url` to `http://localhost:8000`.
+2. Set `cookie_secure` to `false`.
+3. Run `php -S localhost:8000 router.php`.
+4. Open `http://localhost:8000/login`.
+
+Production settings:
+- `app_url`: `https://assessment.netcascade.in`
+- `cookie_secure`: `true`
+- `app_env`: `production`
+- DB credentials: Hostinger production values
+
+Important file conventions:
+- `config/env.php` is not committed.
+- Logs live under `storage/logs/`.
+- Clean URLs are routed through `router.php` and `.htaccess`.
+
+**Module Documentation**
+Auth module:
+- Registration with OTP verification.
+- Login with JWT session creation.
+- Forgot password and reset password by email link.
+- Logout and session revocation.
+
+Assessment module:
+- Category and topic selection.
+- Demo mode with immediate feedback.
+- Assessment mode with timer, save-before-next behavior, mark for review, skip, submit, and auto-submit.
+- Final result computation and review data.
+
+Frontend module:
+- Auth pages: login, register, verify email, forgot password, reset password.
+- App pages: dashboard, assessment, result, terms.
+- Shared loader and error summary behavior in `assets/js/api.js`.
+- Assessment interactivity in `assets/js/assessment.js`.
+
+Security module:
+- `AuthService`, `RateLimiter`, `SecurityLog`, `ErrorLogger`.
+- CSRF and protected-page guards.
+- Browser cookie-based auth.
+
+Mail module:
+- OTP and reset email delivery.
+- Provider-driven transport with error logging.
+
+If you are continuing development from this point, treat this document as the canonical project handoff. Update it whenever the architecture, endpoints, schema, or major UI flows change.
