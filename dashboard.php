@@ -22,7 +22,7 @@ App\Services\AuthService::requirePage();
     <main class="page-shell">
         <header class="topbar">
             <div>
-                <div class="brand">Assessment Platforms</div>
+                <div class="brand">Assessment Platform</div>
                 <div class="muted">Welcome, <span id="studentName">Student</span></div>
             </div>
             <button id="logout" class="secondary" type="button">Logout</button>
