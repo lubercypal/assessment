@@ -22,6 +22,7 @@
             <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="email"></label>
             <label class="field"><span>Password</span><input type="password" name="password" required autocomplete="current-password"></label>
             <div id="message" class="message"></div>
+            <div id="throttleMessage" class="message error form-alert hidden" role="alert"></div>
             <div class="actions">
                 <button type="submit" class="action-wide">Login</button>
             </div>

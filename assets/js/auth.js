@@ -43,6 +43,50 @@ function showPageNotice() {
     }
 }
 
+let loginThrottleTimer = null;
+
+function clearLoginThrottleCountdown() {
+    if (loginThrottleTimer) {
+        clearInterval(loginThrottleTimer);
+        loginThrottleTimer = null;
+    }
+}
+
+function showLoginThrottleCountdown(seconds) {
+    const node = document.querySelector('#throttleMessage');
+    if (!node) return;
+
+    clearLoginThrottleCountdown();
+    let remaining = Math.max(0, Number(seconds) || 0);
+    if (remaining <= 0) {
+        node.textContent = 'Too many login attempts. Please try again in a moment.';
+        node.className = 'message error form-alert';
+        node.setAttribute('role', 'alert');
+        return;
+    }
+
+    const render = () => {
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        node.textContent = `Too many login attempts. Please wait ${mins}m ${String(secs).padStart(2, '0')}s before trying again.`;
+        node.className = 'message error form-alert';
+        node.setAttribute('role', 'alert');
+    };
+
+    render();
+    loginThrottleTimer = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+            clearLoginThrottleCountdown();
+            node.textContent = 'You can try logging in again now.';
+            node.className = 'message success form-alert';
+            node.setAttribute('role', 'status');
+            return;
+        }
+        render();
+    }, 1000);
+}
+
 bindForm('#registerForm', async (data) => {
     data.terms = document.querySelector('#terms').checked ? '1' : '';
     try {
@@ -129,8 +173,17 @@ if (sendOtpBtn) {
 }
 
 bindForm('#loginForm', async (data) => {
-    await api('auth/login', { method: 'POST', body: JSON.stringify(data) });
-    window.location.href = 'dashboard';
+    try {
+        clearLoginThrottleCountdown();
+        await api('auth/login', { method: 'POST', body: JSON.stringify(data) });
+        window.location.href = 'dashboard';
+    } catch (error) {
+        if (error.status === 429) {
+            showLoginThrottleCountdown(error.details?.retry_after_seconds || 0);
+            return;
+        }
+        throw error;
+    }
 });
 
 bindForm('#forgotForm', async (data) => {
