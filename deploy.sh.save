@@ -7,4 +7,3 @@ git push
 ssh assessment 'cd ~/domains/assessment.netcascade.in/public_html && git pull'
 echo ""
 echo "✅ Deployment Completed"
-
