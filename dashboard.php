@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/app/bootstrap.php';
 
-App\Services\AuthService::requirePage();
+$session = App\Services\AuthService::requirePage();
 ?>
 <!doctype html>
 <html lang="en">
@@ -23,7 +23,7 @@ App\Services\AuthService::requirePage();
         <header class="topbar">
             <div>
                 <div class="brand">Assessment Platform</div>
-                <div class="muted">Welcome, <span id="studentName">Student</span></div>
+                <div class="muted">Welcome, <span id="studentName"><?= htmlspecialchars($session['full_name'] ?? 'Student', ENT_QUOTES, 'UTF-8') ?></span></div>
             </div>
             <button id="logout" class="secondary" type="button">Logout</button>
         </header>

@@ -10,9 +10,7 @@ let activeSession = null;
 document.addEventListener('DOMContentLoaded', async () => {
     showLoader('Loading dashboard...');
     try {
-        const session = await requireAuth();
-        if (!session) return;
-        document.querySelector('#studentName').textContent = session.user.full_name;
+        startSessionTimeout();
 
         categories = (await api('categories')).categories;
         const selects = document.querySelectorAll('[name="category_id"]');
