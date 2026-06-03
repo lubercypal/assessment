@@ -263,7 +263,6 @@
                     <main class="page-shell session-result-shell">
                         <header class="topbar">
                             <div class="brand">Assessment Result</div>
-                            <button id="inlineExitSession" type="button" class="secondary">Exit</button>
                         </header>
                         <section class="panel stack">
                             <h1>Final Submission</h1>
@@ -279,10 +278,6 @@
                         </section>
                     </main>
                 `;
-
-                root.querySelector('#inlineExitSession')?.addEventListener('click', () => {
-                    state.onExit?.();
-                });
             }
 
             async function submitAttempt() {

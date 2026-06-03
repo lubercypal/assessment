@@ -20,7 +20,7 @@ $session = App\Services\AuthService::requirePage();
             <div class="loader-subtext">Please wait.</div>
         </div>
     </div>
-    <main class="page-shell">
+    <main id="dashboardShell" class="page-shell">
         <header class="topbar">
             <div>
                 <div class="brand">Assessment Platform</div>
@@ -66,6 +66,7 @@ $session = App\Services\AuthService::requirePage();
             <div id="sessionMount" class="session-modal__mount"></div>
         </div>
     </div>
+    <div id="sessionKeyboardWarning" class="keyboard-warning hidden">Keyboard input is disabled here. Please use mouse clicks only.</div>
     <template id="assessmentSessionTemplate">
         <main class="page-shell session-shell">
             <header class="topbar">

@@ -484,17 +484,26 @@ button:disabled {
     border-bottom: 1px solid var(--line);
 }
 
-.session-modal__frame {
-    width: 100%;
-    height: 100%;
-    border: 0;
-    background: white;
-}
-
 .session-modal__mount {
     width: 100%;
     height: 100%;
-    overflow: hidden;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.session-modal .page-shell {
+    width: 100%;
+    max-width: none;
+    padding: 18px;
+}
+
+.session-starting {
+    width: min(520px, calc(100vw - 32px));
+    margin: 12vh auto 0;
+}
+
+.session-result-shell {
+    min-height: 100%;
 }
 
 .keyboard-warning {

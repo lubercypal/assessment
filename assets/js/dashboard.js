@@ -5,7 +5,10 @@ const sessionTitle = document.querySelector('#sessionTitle');
 const sessionSubtitle = document.querySelector('#sessionSubtitle');
 const closeSessionBtn = document.querySelector('#closeSession');
 const assessmentSessionTemplate = document.querySelector('#assessmentSessionTemplate');
+const dashboardShell = document.querySelector('#dashboardShell');
+const sessionKeyboardWarning = document.querySelector('#sessionKeyboardWarning');
 let activeSession = null;
+let sessionWarningTimer = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     showLoader('Loading dashboard...');
@@ -59,12 +62,13 @@ async function startAttempt(form, mode) {
         topic_id: formData.topic_id || null,
         mode,
     };
-    showLoader(mode === 'demo' ? 'Starting demo...' : 'Starting assessment...');
+
+    openSessionShell(mode);
     try {
         const attempt = await api('attempts/start', { method: 'POST', body: JSON.stringify(payload) });
-        openSession(attempt.attempt_id, mode);
+        mountAssessmentSession(attempt.attempt_id, mode);
     } catch (error) {
-        hideLoader();
+        closeSession();
         throw error;
     }
 }
@@ -72,19 +76,40 @@ async function startAttempt(form, mode) {
 bindForm('#demoForm', async (_, form) => startAttempt(form, 'demo'));
 bindForm('#assessmentForm', async (_, form) => startAttempt(form, 'assessment'));
 
-function openSession(attemptId, mode) {
-    if (!sessionModal || !sessionMount || !assessmentSessionTemplate || !window.AssessmentApp) return;
+function openSessionShell(mode) {
+    if (!sessionModal || !sessionMount) return;
     sessionTitle.textContent = mode === 'demo' ? 'Demo Session' : 'Assessment Session';
     sessionSubtitle.textContent = mode === 'demo'
         ? 'Sample questions with immediate feedback.'
         : 'Formal assessment in progress. Use mouse clicks only.';
     document.body.classList.add('session-open');
+    dashboardShell?.setAttribute('inert', '');
+    dashboardShell?.setAttribute('aria-hidden', 'true');
     sessionMount.innerHTML = '';
-    sessionMount.appendChild(assessmentSessionTemplate.content.cloneNode(true));
+    sessionMount.innerHTML = `
+        <div class="session-starting panel">
+            <h1>${mode === 'demo' ? 'Starting Demo' : 'Starting Assessment'}</h1>
+            <p>Please wait while your session is prepared.</p>
+        </div>
+    `;
     sessionModal.classList.remove('hidden');
     sessionModal.setAttribute('aria-hidden', 'false');
     sessionModal.setAttribute('tabindex', '-1');
     sessionModal.focus();
+
+    if (sessionModal.requestFullscreen && !document.fullscreenElement) {
+        sessionModal.requestFullscreen().catch(() => {});
+    }
+}
+
+function mountAssessmentSession(attemptId, mode) {
+    if (!sessionModal || !sessionMount || !assessmentSessionTemplate || !window.AssessmentApp) {
+        showSessionKeyboardWarning('Assessment session could not start. Please refresh and try again.');
+        return;
+    }
+
+    sessionMount.innerHTML = '';
+    sessionMount.appendChild(assessmentSessionTemplate.content.cloneNode(true));
     activeSession = window.AssessmentApp.mount(sessionMount, {
         attemptId,
         mode,
@@ -104,20 +129,28 @@ function closeSession() {
     sessionModal.classList.add('hidden');
     sessionModal.setAttribute('aria-hidden', 'true');
     sessionModal.removeAttribute('tabindex');
+    dashboardShell?.removeAttribute('inert');
+    dashboardShell?.removeAttribute('aria-hidden');
     document.body.classList.remove('session-open');
-    closeSessionBtn?.focus();
+    if (document.fullscreenElement === sessionModal && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+    }
+    document.querySelector('#demoForm button[type="submit"]')?.focus();
 }
 
 window.addEventListener('keydown', (event) => {
     if (!sessionModal || sessionModal.classList.contains('hidden')) return;
     event.preventDefault();
     event.stopPropagation();
-    showMessage('Keyboard input is disabled here. Please use mouse clicks only.', 'error', '#assessmentMessage');
+    showSessionKeyboardWarning();
 }, true);
 
-window.addEventListener('message', (event) => {
-    if (!event.data || typeof event.data !== 'object') return;
-    if (event.data.type === 'session-close') {
-        closeSession();
-    }
-}, false);
+function showSessionKeyboardWarning(text = 'Keyboard input is disabled here. Please use mouse clicks only.') {
+    if (!sessionKeyboardWarning) return;
+    sessionKeyboardWarning.textContent = text;
+    sessionKeyboardWarning.classList.remove('hidden');
+    clearTimeout(sessionWarningTimer);
+    sessionWarningTimer = setTimeout(() => {
+        sessionKeyboardWarning.classList.add('hidden');
+    }, 2200);
+}
