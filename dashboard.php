@@ -38,7 +38,7 @@ App\Services\AuthService::requirePage();
                     <label class="field"><span>Subject</span><select name="category_id" required></select></label>
                     <label class="field"><span>Topic</span><select name="topic_id"><option value="">Any topic</option></select></label>
                     <div id="demoMessage" class="message"></div>
-                    <button type="submit">Start Demo</button>
+                    <button type="submit" class="action-wide">Take the Demo</button>
                 </form>
 
                 <form id="assessmentForm" class="tile stack" data-message="#assessmentMessage">
@@ -48,11 +48,23 @@ App\Services\AuthService::requirePage();
                     <p>Questions are randomized. Answers are saved before navigation. The assessment auto-submits when the timer ends.</p>
                     <label class="check"><input type="checkbox" name="confirm_rules" required> I confirm that I have read the instructions and assessment rules.</label>
                     <div id="assessmentMessage" class="message"></div>
-                    <button type="submit">Start Assessment</button>
+                    <button type="submit" class="action-wide">Start Assessment</button>
                 </form>
             </div>
         </section>
     </main>
+    <div id="sessionModal" class="session-modal hidden" aria-hidden="true">
+        <div class="session-modal__shell">
+            <header class="session-modal__bar">
+                <div>
+                    <div id="sessionTitle" class="brand">Assessment Session</div>
+                    <div id="sessionSubtitle" class="muted">Use mouse clicks only.</div>
+                </div>
+                <button id="closeSession" type="button" class="secondary">Exit</button>
+            </header>
+            <iframe id="sessionFrame" title="Assessment session" class="session-modal__frame" src="about:blank"></iframe>
+        </div>
+    </div>
     <script src="assets/js/api.js"></script>
     <script src="assets/js/dashboard.js"></script>
 </body>
