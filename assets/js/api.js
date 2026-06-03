@@ -125,6 +125,36 @@ function renderErrorSummary(messageNode, error) {
     if (!messageNode || !error) return;
 
     const details = error.details || {};
+    if (error.status === 429 && Number(details.retry_after_seconds || 0) > 0) {
+        const seconds = Number(details.retry_after_seconds || 0);
+        const tick = (node, remaining) => {
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            node.textContent = `Too many login attempts. Please wait ${mins}m ${String(secs).padStart(2, '0')}s before trying again.`;
+        };
+
+        messageNode.innerHTML = '<span class="countdown-copy"></span>';
+        const copy = messageNode.querySelector('.countdown-copy');
+        if (copy) {
+            let remaining = seconds;
+            tick(copy, remaining);
+            const timer = setInterval(() => {
+                remaining -= 1;
+                if (remaining <= 0) {
+                    clearInterval(timer);
+                    messageNode.textContent = 'You can try logging in again now.';
+                    messageNode.className = 'message success form-alert';
+                    messageNode.setAttribute('role', 'status');
+                    return;
+                }
+                tick(copy, remaining);
+            }, 1000);
+        }
+        messageNode.className = 'message error form-alert';
+        messageNode.setAttribute('role', 'alert');
+        return;
+    }
+
     const fields = Object.entries(details)
         .filter(([key]) => !['_form', 'action', 'retry_after_seconds'].includes(key))
         .map(([, value]) => Array.isArray(value) ? value.join(' ') : String(value || ''))

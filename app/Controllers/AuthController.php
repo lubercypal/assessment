@@ -198,8 +198,12 @@ final class AuthController
         }
 
         $email = strtolower(trim((string) $data['email']));
-        if (!RateLimiter::hit('login', RateLimiter::ip() . '|' . $email, 6, 900)) {
-            Response::error('Too many login attempts. Please try later.', 429);
+        $loginKey = RateLimiter::ip() . '|' . $email;
+        if (!RateLimiter::hit('login', $loginKey, 6, 450)) {
+            $wait = RateLimiter::retryAfter('login', $loginKey);
+            Response::error('Too many login attempts. Please try later.', 429, [
+                'retry_after_seconds' => $wait,
+            ]);
         }
 
         $user = $this->findUserByEmail($email);

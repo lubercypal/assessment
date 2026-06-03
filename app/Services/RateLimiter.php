@@ -33,6 +33,20 @@ final class RateLimiter
         return true;
     }
 
+    public static function retryAfter(string $action, string $identifier): int
+    {
+        $key = hash('sha256', $action . '|' . $identifier);
+        $stmt = db()->prepare('SELECT attempts, expires_at FROM rate_limits WHERE action_key = ? LIMIT 1');
+        $stmt->execute([$key]);
+        $row = $stmt->fetch();
+
+        if (!$row) {
+            return 0;
+        }
+
+        return max(0, strtotime((string) $row['expires_at']) - time());
+    }
+
     public static function ip(): string
     {
         return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
