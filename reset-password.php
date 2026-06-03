@@ -1,9 +1,13 @@
 <?php require_once __DIR__ . '/app/bootstrap.php'; ?>
 <?php
-$resetEmail = htmlspecialchars($_GET['email'] ?? '', ENT_QUOTES);
 $resetToken = trim((string) ($_GET['token'] ?? ''));
-$hasResetToken = $resetToken !== '';
-$missingToken = !$hasResetToken;
+if ($resetToken === '') {
+    header('Location: forgot-password?notice=reset_link_required');
+    exit;
+}
+
+$resetEmail = htmlspecialchars($_GET['email'] ?? '', ENT_QUOTES);
+$hasResetToken = true;
 ?>
 <!doctype html>
 <html lang="en">
@@ -23,16 +27,8 @@ $missingToken = !$hasResetToken;
     </div>
     <main class="auth-shell panel">
         <h1>Set New Password</h1>
-        <div id="pageNotice" class="message <?php echo $missingToken ? 'error form-alert' : ''; ?>" role="alert" <?php echo $missingToken ? '' : 'hidden'; ?>>
-            <?php if ($missingToken): ?>
-                <strong>This password reset link is missing or invalid.</strong>
-                <div class="form-alert-cta">
-                    <a class="action-link secondary" href="forgot-password">Request Reset Link</a>
-                    <span>Please request a fresh password reset link to continue.</span>
-                </div>
-            <?php endif; ?>
-        </div>
-        <form id="resetForm" class="stack" data-message="#message" data-token="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>" data-email="<?php echo $resetEmail; ?>" <?php echo $missingToken ? 'hidden' : ''; ?>>
+        <div id="pageNotice" class="message" role="alert" hidden></div>
+        <form id="resetForm" class="stack" data-message="#message" data-token="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>" data-email="<?php echo $resetEmail; ?>">
             <input type="hidden" name="token" value="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>">
             <label class="field"><span>Email</span><input type="email" name="email" required value="<?php echo $resetEmail; ?>" <?php echo $hasResetToken ? 'readonly aria-readonly="true"' : ''; ?>></label>
             <label class="field"><span>New Password</span><input type="password" name="password" required autocomplete="new-password"></label>

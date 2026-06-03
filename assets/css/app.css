@@ -207,6 +207,17 @@ input[readonly] {
     width: 100%;
 }
 
+.login-links > :nth-child(3) {
+    grid-column: 1 / -1;
+}
+
+.register-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+}
+
 .auth-links-grid > *,
 .auth-links-full > * {
     width: 100%;
@@ -244,10 +255,6 @@ input[readonly] {
 
 .action-link:hover {
     border-color: var(--brand);
-}
-
-.verify-actions .action-link {
-    grid-column: 1 / -1;
 }
 
 button {
@@ -466,6 +473,10 @@ button:disabled {
     }
 
     .auth-links-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .register-actions {
         grid-template-columns: 1fr;
     }
 }

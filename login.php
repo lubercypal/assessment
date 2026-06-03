@@ -19,17 +19,16 @@
         <h1>Assessment Login</h1>
         <p>Sign in with your verified email to continue.</p>
         <form id="loginForm" class="stack">
-            <div class="auth-links auth-links-grid auth-links-subtle">
-                <a href="register" class="action-link secondary">Register</a>
-                <a href="verify-email" class="action-link secondary">Verify Email</a>
-                <a href="forgot-password" class="action-link secondary">Forgot Password</a>
-                <a href="terms" class="action-link secondary">Terms & Conditions</a>
-            </div>
             <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="email"></label>
             <label class="field"><span>Password</span><input type="password" name="password" required autocomplete="current-password"></label>
             <div id="message" class="message"></div>
             <div class="actions">
-                <button type="submit">Login</button>
+                <button type="submit" class="action-wide">Login</button>
+            </div>
+            <div class="auth-links auth-links-grid login-links">
+                <a href="register" class="action-link secondary">Register</a>
+                <a href="verify-email" class="action-link secondary">Verify Email</a>
+                <a href="forgot-password" class="action-link secondary">Forgot Password</a>
             </div>
         </form>
     </main>

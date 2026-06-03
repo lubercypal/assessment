@@ -92,7 +92,7 @@ function renderErrorSummary(messageNode, error) {
         .map(([, value]) => Array.isArray(value) ? value.join(' ') : String(value || ''))
         .filter(Boolean);
 
-    if (error.status === 422 && fields.length > 0) {
+    if (error.status === 422 && (fields.length > 0 || details._form || details.action)) {
         const action = details.action || '';
         const email = encodeURIComponent(String(details.email || ''));
         const actionMap = {
@@ -109,9 +109,7 @@ function renderErrorSummary(messageNode, error) {
         const listItems = fields.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
         messageNode.innerHTML = `
             <strong>${escapeHtml(error.details._form || 'Please correct the highlighted fields.')}</strong>
-            <ul class="form-alert-list">
-                ${listItems}
-            </ul>
+            ${fields.length > 0 ? `<ul class="form-alert-list">${listItems}</ul>` : ''}
             ${recovery ? `<div class="form-alert-cta"><a class="action-link" href="${escapeHtml(recovery.href)}">${escapeHtml(recovery.label)}</a><span>${escapeHtml(helperText)}</span></div>` : `<div class="form-alert-cta"><span>${escapeHtml(helperText)}</span></div>`}
         `;
         messageNode.className = 'message error form-alert';

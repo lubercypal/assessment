@@ -29,10 +29,8 @@
                 </div>
                 <label class="check"><input id="terms" type="checkbox" required> I accept the consent and terms. <a href="terms">Read here</a></label>
                 <div id="message" class="message"></div>
-                <div class="actions">
-                    <button type="submit">Register</button>
-                </div>
-                <div class="verify-actions">
+                <div class="register-actions">
+                    <button type="submit" class="action-wide">Register</button>
                     <a href="login" class="action-link secondary action-wide">Cancel</a>
                     <a href="verify-email" class="action-link action-wide">Verify Email</a>
                 </div>
