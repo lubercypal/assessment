@@ -265,7 +265,8 @@ final class AuthController
 
         $tokenHash = hash('sha256', (string) $data['token']);
         $stmt = db()->prepare(
-            'SELECT pr.id, pr.expires_at, pr.consumed_at, u.id AS user_id, u.email
+            'SELECT pr.id, pr.created_at, pr.consumed_at, u.id AS user_id, u.email,
+                    CASE WHEN pr.consumed_at IS NULL AND TIMESTAMPDIFF(SECOND, pr.created_at, NOW()) < 1800 THEN 1 ELSE 0 END AS is_valid
              FROM password_resets pr
              INNER JOIN users u ON u.id = pr.user_id
              WHERE pr.token_hash = ?
@@ -285,7 +286,7 @@ final class AuthController
             Response::error('Too many password reset attempts. Please try later.', 429);
         }
 
-        if (!$reset || !empty($reset['consumed_at']) || strtotime((string) $reset['expires_at']) <= time()) {
+        if (!$reset || (int) ($reset['is_valid'] ?? 0) !== 1) {
             Response::error('This reset link has expired. Please request a new password reset link.', 422, [
                 'action' => 'forgot-password',
                 'email' => $reset['email'] ?? null,
@@ -319,7 +320,8 @@ final class AuthController
         $token = hash('sha256', (string) $data['token']);
 
         $stmt = db()->prepare(
-            'SELECT pr.expires_at, pr.consumed_at, u.email
+            'SELECT pr.created_at, pr.consumed_at, u.email,
+                    CASE WHEN pr.consumed_at IS NULL AND TIMESTAMPDIFF(SECOND, pr.created_at, NOW()) < 1800 THEN 1 ELSE 0 END AS is_valid
              FROM password_resets pr
              INNER JOIN users u ON u.id = pr.user_id
              WHERE pr.token_hash = ?
@@ -328,7 +330,7 @@ final class AuthController
         $stmt->execute([$token]);
         $reset = $stmt->fetch();
 
-        if (!$reset || !empty($reset['consumed_at']) || strtotime((string) $reset['expires_at']) <= time()) {
+        if (!$reset || (int) ($reset['is_valid'] ?? 0) !== 1) {
             Response::error('This password reset link has expired. Please request a new password reset link.', 422, [
                 'action' => 'forgot-password',
                 'email' => $reset['email'] ?? $email,
