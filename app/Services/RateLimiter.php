@@ -7,14 +7,14 @@ final class RateLimiter
     public static function hit(string $action, string $identifier, int $maxAttempts, int $windowSeconds): bool
     {
         $key = hash('sha256', $action . '|' . $identifier);
-        $expiresAt = date('Y-m-d H:i:s', time() + $windowSeconds);
+        $expiresAt = gmdate('Y-m-d H:i:s', time() + $windowSeconds);
 
         $stmt = db()->prepare(
             'INSERT INTO rate_limits (action_key, attempts, expires_at)
              VALUES (?, 1, ?)
              ON DUPLICATE KEY UPDATE
-                attempts = IF(expires_at < NOW(), 1, attempts + 1),
-                expires_at = IF(expires_at < NOW(), VALUES(expires_at), expires_at)'
+                attempts = IF(expires_at < UTC_TIMESTAMP(), 1, attempts + 1),
+                expires_at = IF(expires_at < UTC_TIMESTAMP(), VALUES(expires_at), expires_at)'
         );
         $stmt->execute([$key, $expiresAt]);
 
@@ -44,7 +44,7 @@ final class RateLimiter
             return 0;
         }
 
-        return max(0, strtotime((string) $row['expires_at']) - time());
+        return max(0, strtotime((string) $row['expires_at'] . ' UTC') - time());
     }
 
     public static function ip(): string

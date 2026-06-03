@@ -57,9 +57,9 @@ function showLoginThrottleCountdown(seconds) {
     if (!node) return;
 
     clearLoginThrottleCountdown();
-    let remaining = Math.max(0, Number(seconds) || 0);
+    let remaining = Math.max(0, Number(seconds) || 450);
     if (remaining <= 0) {
-        node.textContent = 'Too many login attempts. Please try again in a moment.';
+        node.textContent = 'Too many login attempts. Please wait 7m 30s before trying again.';
         node.className = 'message error form-alert';
         node.setAttribute('role', 'alert');
         return;
@@ -172,14 +172,14 @@ if (sendOtpBtn) {
     });
 }
 
-bindForm('#loginForm', async (data) => {
+    bindForm('#loginForm', async (data) => {
     try {
         clearLoginThrottleCountdown();
         await api('auth/login', { method: 'POST', body: JSON.stringify(data) });
         window.location.href = 'dashboard';
     } catch (error) {
         if (error.status === 429) {
-            showLoginThrottleCountdown(error.details?.retry_after_seconds || 0);
+            showLoginThrottleCountdown(error.details?.retry_after_seconds || 450);
             return;
         }
         throw error;
