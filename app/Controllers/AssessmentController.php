@@ -101,7 +101,7 @@ final class AssessmentController
     public function saveAnswer(int $attemptId, array $data): void
     {
         $attempt = $this->attemptForUser($attemptId);
-        if ($attempt['submitted_at'] || strtotime($attempt['expires_at']) < time()) {
+        if ($attempt['submitted_at'] || (int) ($attempt['remaining_seconds'] ?? 0) <= 0) {
             Response::error('This attempt is closed.', 409);
         }
 
@@ -145,7 +145,7 @@ final class AssessmentController
     public function result(int $attemptId): void
     {
         $attempt = $this->attemptForUser($attemptId);
-        if (!$attempt['submitted_at'] && strtotime($attempt['expires_at']) >= time()) {
+        if (!$attempt['submitted_at'] && (int) ($attempt['remaining_seconds'] ?? 0) > 0) {
             Response::error('Result is available only after submission.', 409);
         }
         if (!$attempt['submitted_at']) {
@@ -159,7 +159,13 @@ final class AssessmentController
     private function attemptForUser(int $attemptId): array
     {
         $user = AuthService::user();
-        $stmt = db()->prepare('SELECT * FROM assessment_attempts WHERE id = ? AND user_id = ? LIMIT 1');
+        $stmt = db()->prepare(
+            'SELECT assessment_attempts.*,
+                    GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), expires_at)) AS remaining_seconds
+             FROM assessment_attempts
+             WHERE id = ? AND user_id = ?
+             LIMIT 1'
+        );
         $stmt->execute([$attemptId, $user['id']]);
         $attempt = $stmt->fetch();
 
@@ -280,7 +286,7 @@ final class AssessmentController
             'total_questions' => (int) $attempt['total_questions'],
             'expires_at' => $attempt['expires_at'],
             'submitted_at' => $attempt['submitted_at'],
-            'remaining_seconds' => max(0, strtotime($attempt['expires_at']) - time()),
+            'remaining_seconds' => max(0, (int) ($attempt['remaining_seconds'] ?? 0)),
         ];
     }
 }

@@ -78,9 +78,12 @@ function openSession(attemptId, mode) {
     sessionSubtitle.textContent = mode === 'demo'
         ? 'Sample questions with immediate feedback.'
         : 'Formal assessment in progress. Use mouse clicks only.';
-    sessionFrame.src = `assessment?attempt=${attemptId}&mode=${mode}&kiosk=1`;
+    document.body.classList.add('session-open');
+    sessionFrame.src = `assessment?attempt=${attemptId}&mode=${mode}&kiosk=1&embed=1`;
     sessionModal.classList.remove('hidden');
     sessionModal.setAttribute('aria-hidden', 'false');
+    sessionModal.setAttribute('tabindex', '-1');
+    sessionModal.focus();
 }
 
 function closeSession() {
@@ -88,11 +91,14 @@ function closeSession() {
     sessionFrame.src = 'about:blank';
     sessionModal.classList.add('hidden');
     sessionModal.setAttribute('aria-hidden', 'true');
+    sessionModal.removeAttribute('tabindex');
+    document.body.classList.remove('session-open');
+    closeSessionBtn?.focus();
 }
 
 window.addEventListener('keydown', (event) => {
     if (!sessionModal || sessionModal.classList.contains('hidden')) return;
-    if (event.key === 'Escape') return;
     event.preventDefault();
+    event.stopPropagation();
     showMessage('Keyboard input is disabled here. Please use mouse clicks only.', 'error', '#assessmentMessage');
 }, true);

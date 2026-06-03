@@ -1,10 +1,18 @@
 const resultParams = new URLSearchParams(window.location.search);
 const resultAttemptId = resultParams.get('attempt');
+const resultKioskMode = resultParams.get('kiosk') === '1';
 
 document.addEventListener('DOMContentLoaded', async () => {
     showLoader('Loading result...');
     try {
         await requireAuth();
+        if (resultKioskMode) {
+            enableKioskMode();
+            const backLink = document.querySelector('#resultBackLink');
+            if (backLink) {
+                backLink.classList.add('hidden');
+            }
+        }
         const data = await api(`attempts/${resultAttemptId}/result`);
         renderResult(data);
     } finally {
@@ -55,4 +63,41 @@ function escapeHtml(value) {
         '"': '&quot;',
         "'": '&#039;',
     })[char]);
+}
+
+function enableKioskMode() {
+    const warning = document.createElement('div');
+    warning.id = 'keyboardWarning';
+    warning.className = 'keyboard-warning hidden';
+    warning.textContent = 'Keyboard input is disabled here. Please use mouse clicks only.';
+    document.body.appendChild(warning);
+
+    let warningTimer = null;
+    const showWarning = () => {
+        warning.classList.remove('hidden');
+        clearTimeout(warningTimer);
+        warningTimer = setTimeout(() => warning.classList.add('hidden'), 2200);
+    };
+
+    document.addEventListener('keydown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        document.activeElement?.blur?.();
+        showWarning();
+    }, true);
+
+    document.addEventListener('keypress', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        document.activeElement?.blur?.();
+    }, true);
+
+    document.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        showWarning();
+    }, true);
+
+    window.focus();
+    document.documentElement.setAttribute('tabindex', '-1');
+    document.documentElement.focus();
 }

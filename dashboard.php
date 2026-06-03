@@ -62,7 +62,7 @@ App\Services\AuthService::requirePage();
                 </div>
                 <button id="closeSession" type="button" class="secondary">Exit</button>
             </header>
-            <iframe id="sessionFrame" title="Assessment session" class="session-modal__frame" src="about:blank"></iframe>
+            <iframe id="sessionFrame" title="Assessment session" class="session-modal__frame" src="about:blank" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
         </div>
     </div>
     <script src="assets/js/api.js"></script>

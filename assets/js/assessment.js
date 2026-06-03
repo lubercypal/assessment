@@ -165,7 +165,7 @@ async function submitAttempt() {
         await save('answered').catch(() => {});
         const result = await api(`attempts/${attemptId}/submit`, { method: 'POST', body: '{}' });
         sessionStorage.setItem(`result_${attemptId}`, JSON.stringify(result));
-        window.location.href = `result?attempt=${attemptId}`;
+        window.location.href = `result?attempt=${attemptId}&kiosk=1`;
     } finally {
         hideLoader();
     }
@@ -198,16 +198,22 @@ function enableKioskMode() {
     document.addEventListener('keydown', (event) => {
         event.preventDefault();
         event.stopPropagation();
+        document.activeElement?.blur?.();
         showWarning();
     }, true);
 
     document.addEventListener('keypress', (event) => {
         event.preventDefault();
         event.stopPropagation();
+        document.activeElement?.blur?.();
     }, true);
 
     document.addEventListener('contextmenu', (event) => {
         event.preventDefault();
         showWarning();
     }, true);
+
+    window.focus();
+    document.documentElement.setAttribute('tabindex', '-1');
+    document.documentElement.focus();
 }

@@ -22,7 +22,7 @@ App\Services\AuthService::requirePage();
     <main class="page-shell">
         <header class="topbar">
             <div class="brand">Assessment Result</div>
-            <a href="dashboard">Back to Dashboard</a>
+            <a id="resultBackLink" href="dashboard">Back to Dashboard</a>
         </header>
         <section class="panel stack">
             <h1>Final Submission</h1>
