@@ -43,40 +43,6 @@ function showPageNotice() {
     }
 }
 
-async function checkResetLink() {
-    const form = document.querySelector('#resetForm');
-    if (!form) return;
-
-    const token = (form.dataset.token || '').trim();
-    const email = (form.dataset.email || '').trim();
-    const notice = document.querySelector('#pageNotice');
-    if (!token) {
-        return;
-    }
-
-    try {
-        const result = await api('auth/reset-link-status', {
-            method: 'POST',
-            body: JSON.stringify({ token, email }),
-        });
-        const emailInput = form.querySelector('#resetEmail');
-        if (emailInput && result?.email) {
-            emailInput.value = result.email;
-        }
-        if (notice) {
-            notice.classList.add('hidden');
-        }
-        form.classList.remove('hidden');
-    } catch (error) {
-        const message = notice || document.querySelector('#message');
-        if (message) {
-            renderErrorSummary(message, error);
-            message.classList.remove('hidden');
-        }
-        form.classList.add('hidden');
-    }
-}
-
 bindForm('#registerForm', async (data) => {
     data.terms = document.querySelector('#terms').checked ? '1' : '';
     try {
@@ -179,4 +145,3 @@ bindForm('#resetForm', async (data) => {
 });
 
 showPageNotice();
-checkResetLink();
