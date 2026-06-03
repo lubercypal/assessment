@@ -98,6 +98,14 @@
                     showWarning();
                 }, true);
 
+                ['copy', 'cut', 'paste', 'selectstart', 'dragstart'].forEach((eventName) => {
+                    on(document, eventName, (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        showWarning();
+                    }, true);
+                });
+
                 on(window, 'focus', () => {
                     query('#questionText')?.focus?.();
                 });
@@ -129,6 +137,104 @@
                 return scope.querySelectorAll(selector);
             }
 
+            function renderProtectedText(node, text) {
+                if (!node) return;
+
+                node.classList.add('protected-text');
+                node.replaceChildren();
+
+                const style = window.getComputedStyle(node);
+                const fontSize = Number.parseFloat(style.fontSize) || 18;
+                const fontWeight = style.fontWeight || '700';
+                const fontFamily = style.fontFamily || 'Arial, sans-serif';
+                const lineHeight = Number.parseFloat(style.lineHeight) || Math.ceil(fontSize * 1.35);
+                const color = style.color || '#172033';
+                const parent = node.parentElement;
+                const parentWidth = parent?.clientWidth || 0;
+                const inputWidth = parent?.querySelector('input')?.getBoundingClientRect?.().width || 0;
+                const width = Math.max(180, Math.floor(node.clientWidth || parentWidth - inputWidth - 18 || 720));
+                const ratio = Math.min(window.devicePixelRatio || 1, 2);
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+
+                context.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+                const lines = wrapCanvasText(context, String(text || ''), width);
+                const height = Math.max(lineHeight, Math.ceil(lines.length * lineHeight));
+
+                canvas.width = Math.ceil(width * ratio);
+                canvas.height = Math.ceil(height * ratio);
+                canvas.style.width = `${width}px`;
+                canvas.style.height = `${height}px`;
+                canvas.className = 'protected-text-canvas';
+                canvas.setAttribute('aria-hidden', 'true');
+
+                context.scale(ratio, ratio);
+                context.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+                context.fillStyle = color;
+                context.textBaseline = 'top';
+                lines.forEach((line, index) => {
+                    context.fillText(line, 0, index * lineHeight);
+                });
+
+                node.appendChild(canvas);
+            }
+
+            function wrapCanvasText(context, text, maxWidth) {
+                const lines = [];
+                const paragraphs = String(text).split(/\r?\n/);
+
+                paragraphs.forEach((paragraph) => {
+                    const words = paragraph.trim().split(/\s+/).filter(Boolean);
+                    let line = '';
+
+                    words.forEach((word) => {
+                        const nextLine = line ? `${line} ${word}` : word;
+                        if (context.measureText(nextLine).width <= maxWidth) {
+                            line = nextLine;
+                            return;
+                        }
+
+                        if (line) {
+                            lines.push(line);
+                            line = '';
+                        }
+
+                        splitLongWord(context, word, maxWidth).forEach((part, index, parts) => {
+                            if (index === parts.length - 1) {
+                                line = part;
+                            } else {
+                                lines.push(part);
+                            }
+                        });
+                    });
+
+                    lines.push(line || ' ');
+                });
+
+                return lines;
+            }
+
+            function splitLongWord(context, word, maxWidth) {
+                const parts = [];
+                let part = '';
+
+                [...word].forEach((char) => {
+                    const nextPart = `${part}${char}`;
+                    if (context.measureText(nextPart).width <= maxWidth || !part) {
+                        part = nextPart;
+                    } else {
+                        parts.push(part);
+                        part = char;
+                    }
+                });
+
+                if (part) {
+                    parts.push(part);
+                }
+
+                return parts;
+            }
+
             async function loadQuestion(index) {
                 showBusy('Loading question...');
                 try {
@@ -152,7 +258,7 @@
                 const q = data.question;
                 query('#modeLabel').textContent = state.mode === 'demo' ? 'Demo Mode' : 'Assessment Mode';
                 query('#questionNumber').textContent = `Question ${currentIndex + 1} of ${totalQuestions}`;
-                query('#questionText').textContent = q.question_text;
+                renderProtectedText(query('#questionText'), q.question_text);
                 const feedback = query('#feedback');
                 feedback.classList.add('hidden');
                 feedback.innerHTML = '';
@@ -161,12 +267,22 @@
                 statusMap.set(currentIndex, data.response?.status || statusMap.get(currentIndex) || 'skipped');
 
                 const type = q.question_type === 'multi' ? 'checkbox' : 'radio';
-                query('#options').innerHTML = q.options.map((option) => `
-                    <label class="option">
-                        <input type="${type}" name="option" value="${option.id}" ${selected.has(Number(option.id)) ? 'checked' : ''}>
-                        <span>${escapeHtml(option.option_text)}</span>
-                    </label>
-                `).join('');
+                const optionsNode = query('#options');
+                optionsNode.innerHTML = '';
+                q.options.forEach((option) => {
+                    const label = document.createElement('label');
+                    const input = document.createElement('input');
+                    const copy = document.createElement('span');
+
+                    label.className = 'option';
+                    input.type = type;
+                    input.name = 'option';
+                    input.value = String(option.id);
+                    input.checked = selected.has(Number(option.id));
+                    label.append(input, copy);
+                    optionsNode.appendChild(label);
+                    renderProtectedText(copy, option.option_text);
+                });
 
                 query('#previous').disabled = currentIndex === 0;
                 query('#next').disabled = currentIndex >= totalQuestions - 1;
@@ -226,15 +342,19 @@
 
             function renderFeedback(feedback) {
                 const node = query('#feedback');
-                const selected = feedback.selected_answers.map((item) => escapeHtml(item.option_text)).join(', ') || 'No answer selected';
-                const correct = feedback.correct_answers.map((item) => escapeHtml(item.option_text)).join(', ');
+                const selected = feedback.selected_answers.map((item) => item.option_text).join(', ') || 'No answer selected';
+                const correct = feedback.correct_answers.map((item) => item.option_text).join(', ');
                 node.classList.remove('hidden');
                 node.innerHTML = `
                     <strong>${feedback.is_correct ? 'Correct' : 'Needs review'}</strong>
-                    <p>Selected answer: ${selected}</p>
-                    <p>Correct answer: ${correct}</p>
+                    <p>Selected answer:</p>
+                    <div class="feedback-answer-copy" data-feedback-copy="selected"></div>
+                    <p>Correct answer:</p>
+                    <div class="feedback-answer-copy" data-feedback-copy="correct"></div>
                     <p>${escapeHtml(feedback.explanation || '')}</p>
                 `;
+                renderProtectedText(node.querySelector('[data-feedback-copy="selected"]'), selected);
+                renderProtectedText(node.querySelector('[data-feedback-copy="correct"]'), correct);
             }
 
             function startTimer() {
@@ -259,18 +379,18 @@
                 const responseCards = data.responses.map((item, index) => {
                     const correct = new Set(item.feedback.correct_option_ids.map(Number));
                     const selected = new Set((item.response?.selected_option_ids || []).map(Number));
-                    const options = item.question.options.map((option) => {
+                    const options = item.question.options.map((option, optionIndex) => {
                         const tags = [
                             correct.has(Number(option.id)) ? 'Correct' : '',
                             selected.has(Number(option.id)) ? 'Selected' : '',
                         ].filter(Boolean).join(' / ');
-                        return `<li>${escapeHtml(option.option_text)} ${tags ? `<strong>(${tags})</strong>` : ''}</li>`;
+                        return `<li><span class="result-option-copy" data-response-index="${index}" data-option-index="${optionIndex}"></span>${tags ? `<strong>(${tags})</strong>` : ''}</li>`;
                     }).join('');
 
                     return `
                         <article class="result-item">
                             <h2>Question ${index + 1}</h2>
-                            <p>${escapeHtml(item.question.question_text)}</p>
+                            <div class="result-question-copy" data-response-index="${index}"></div>
                             <ul>${options}</ul>
                             <p><strong>Explanation:</strong> ${escapeHtml(item.question.explanation || '')}</p>
                         </article>
@@ -300,6 +420,13 @@
                         </section>
                     </main>
                 `;
+
+                data.responses.forEach((item, index) => {
+                    renderProtectedText(root.querySelector(`.result-question-copy[data-response-index="${index}"]`), item.question.question_text);
+                    item.question.options.forEach((option, optionIndex) => {
+                        renderProtectedText(root.querySelector(`.result-option-copy[data-response-index="${index}"][data-option-index="${optionIndex}"]`), option.option_text);
+                    });
+                });
             }
 
             async function submitAttempt() {

@@ -414,6 +414,33 @@ button:disabled {
     cursor: pointer;
 }
 
+.session-shell,
+.session-result-shell,
+.option,
+.protected-text {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.protected-text {
+    display: block;
+    flex: 1;
+    min-width: 0;
+}
+
+.protected-text-canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    pointer-events: none;
+}
+
+.feedback-answer-copy,
+.result-question-copy,
+.result-option-copy {
+    margin: 6px 0;
+}
+
 .option input {
     width: auto;
     margin-top: 3px;
@@ -531,7 +558,9 @@ button:disabled {
     display: grid;
     place-items: center;
     padding: 18px;
-    background: rgba(9, 14, 24, 0.62);
+    background: rgba(2, 6, 23, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .fullscreen-guard__card {
