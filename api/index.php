@@ -89,6 +89,10 @@ try {
 
     Response::error('Route not found.', 404);
 } catch (Throwable $exception) {
+    \App\Services\ErrorLogger::exception($exception, \App\Services\ErrorLogger::requestContext() + [
+        'route' => $path,
+    ]);
+
     $message = strtolower($exception->getMessage());
     $status = 500;
     if (str_contains($message, 'token') || str_contains($message, 'session') || str_contains($message, 'authentication')) {

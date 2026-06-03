@@ -11,6 +11,7 @@ return [
     'db_user' => 'assessment_user',
     'db_pass' => 'change-me',
     'mail_driver' => 'mail',
+    'app_error_log_path' => __DIR__ . '/../storage/logs/app-error.log',
     'mail_log_path' => __DIR__ . '/../storage/logs/mail.log',
     'mail_error_log_path' => __DIR__ . '/../storage/logs/mail-error.log',
     'mail_from' => 'no-reply@assessment.netcascade.in',

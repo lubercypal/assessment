@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/app/bootstrap.php';
 $email = htmlspecialchars($_GET['email'] ?? '', ENT_QUOTES);
 ?>
 <!doctype html>
