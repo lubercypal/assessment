@@ -199,8 +199,9 @@ final class AuthController
 
         $email = strtolower(trim((string) $data['email']));
         $loginKey = RateLimiter::ip() . '|' . $email;
-        if (!RateLimiter::hit('login', $loginKey, 6, 450)) {
-            $wait = RateLimiter::retryAfter('login', $loginKey);
+        $loginThrottleAction = 'login_v2';
+        if (!RateLimiter::hit($loginThrottleAction, $loginKey, 6, 450)) {
+            $wait = RateLimiter::retryAfter($loginThrottleAction, $loginKey);
             Response::error('Too many login attempts. Please try later.', 429, [
                 'retry_after_seconds' => $wait,
             ]);

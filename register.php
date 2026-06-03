@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Register | Assessment Platform</title>
+    <link rel="icon" href="assets/img/assessment-loader.svg" type="image/svg+xml">
     <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body class="auth-page">

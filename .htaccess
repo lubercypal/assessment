@@ -14,6 +14,8 @@ DirectoryIndex login.php index.php
     RewriteEngine On
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    RewriteRule ^favicon\.ico$ assets/img/assessment-loader.svg [L]
+
     RewriteCond %{THE_REQUEST} \s/+(.+?)\.php[\s?] [NC]
     RewriteCond %1 !^api/index$ [NC]
     RewriteRule ^ %1 [R=301,L]
