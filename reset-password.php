@@ -6,31 +6,7 @@ if ($resetToken === '') {
     exit;
 }
 
-$resetEmailRaw = strtolower(trim((string) ($_GET['email'] ?? '')));
-$resetEmail = htmlspecialchars($resetEmailRaw, ENT_QUOTES);
-$resetTokenHash = hash('sha256', $resetToken);
-$resetState = 'valid';
-$resetNotice = '';
-
-if ($resetEmailRaw === '' || !filter_var($resetEmailRaw, FILTER_VALIDATE_EMAIL)) {
-    $resetState = 'invalid';
-    $resetNotice = 'This password reset link is missing or invalid. Please request a new password reset link.';
-} else {
-    $stmt = db()->prepare(
-        'SELECT pr.expires_at, pr.consumed_at
-         FROM password_resets pr
-         INNER JOIN users u ON u.id = pr.user_id
-         WHERE u.email = ? AND pr.token_hash = ?
-         ORDER BY pr.id DESC LIMIT 1'
-    );
-    $stmt->execute([$resetEmailRaw, $resetTokenHash]);
-    $reset = $stmt->fetch();
-
-    if (!$reset || !empty($reset['consumed_at']) || strtotime((string) $reset['expires_at']) <= time()) {
-        $resetState = 'invalid';
-        $resetNotice = 'This password reset link has expired. Please request a new password reset link.';
-    }
-}
+$resetEmail = htmlspecialchars(strtolower(trim((string) ($_GET['email'] ?? ''))), ENT_QUOTES);
 ?>
 <!doctype html>
 <html lang="en">
@@ -50,18 +26,10 @@ if ($resetEmailRaw === '' || !filter_var($resetEmailRaw, FILTER_VALIDATE_EMAIL))
     </div>
     <main class="auth-shell panel">
         <h1>Set New Password</h1>
-        <?php if ($resetState !== 'valid'): ?>
-            <div id="pageNotice" class="message error form-alert" role="alert">
-                <strong><?php echo htmlspecialchars($resetNotice, ENT_QUOTES); ?></strong>
-                <div class="form-alert-cta">
-                    <a class="action-link secondary" href="forgot-password">Request Reset Link</a>
-                    <span>Please request a fresh password reset link to continue.</span>
-                </div>
-            </div>
-        <?php else: ?>
+        <div id="pageNotice" class="message" role="alert" hidden></div>
         <form id="resetForm" class="stack" data-message="#message" data-token="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>" data-email="<?php echo $resetEmail; ?>">
             <input type="hidden" name="token" value="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>">
-            <label class="field"><span>Email</span><input type="email" name="email" required value="<?php echo $resetEmail; ?>" readonly aria-readonly="true"></label>
+            <label class="field"><span>Email</span><input id="resetEmail" type="email" name="email" required value="<?php echo $resetEmail; ?>" readonly aria-readonly="true"></label>
             <label class="field"><span>New Password</span><input type="password" name="password" required autocomplete="new-password"></label>
             <label class="field"><span>Confirm Password</span><input type="password" name="password_confirmation" required autocomplete="new-password"></label>
             <div id="message" class="message"></div>
@@ -73,7 +41,6 @@ if ($resetEmailRaw === '' || !filter_var($resetEmailRaw, FILTER_VALIDATE_EMAIL))
                 <a href="login" class="action-link secondary">Back to Login</a>
             </div>
         </form>
-        <?php endif; ?>
     </main>
     <script src="assets/js/api.js"></script>
     <script src="assets/js/auth.js"></script>

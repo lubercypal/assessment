@@ -252,7 +252,7 @@ final class AuthController
 
     public function resetPassword(array $data): void
     {
-        $errors = Validator::required($data, ['email', 'token', 'password', 'password_confirmation']);
+        $errors = Validator::required($data, ['token', 'password', 'password_confirmation']);
         if (($data['password'] ?? '') !== ($data['password_confirmation'] ?? '')) {
             $errors['password_confirmation'] = 'Passwords do not match.';
         }
@@ -263,46 +263,50 @@ final class AuthController
             Response::error('Validation failed.', 422, $errors);
         }
 
-        $user = $this->findUserByEmail(strtolower(trim((string) $data['email'])));
-        if (!RateLimiter::hit('reset_password', RateLimiter::ip() . '|' . strtolower(trim((string) $data['email'])), 6, 3600)) {
+        $tokenHash = hash('sha256', (string) $data['token']);
+        $stmt = db()->prepare(
+            'SELECT pr.id, pr.expires_at, pr.consumed_at, u.id AS user_id, u.email
+             FROM password_resets pr
+             INNER JOIN users u ON u.id = pr.user_id
+             WHERE pr.token_hash = ?
+             ORDER BY pr.id DESC LIMIT 1'
+        );
+        $stmt->execute([$tokenHash]);
+        $reset = $stmt->fetch();
+
+        if (!$reset) {
+            Response::error('This reset link has expired. Please request a new password reset link.', 422, [
+                'action' => 'forgot-password',
+                '_form' => 'This reset link has expired. Please request a new password reset link.',
+            ]);
+        }
+
+        if (!RateLimiter::hit('reset_password', RateLimiter::ip() . '|' . strtolower(trim((string) ($reset['email'] ?? ''))), 6, 3600)) {
             Response::error('Too many password reset attempts. Please try later.', 429);
         }
-
-        if (!$user) {
-            Response::error('Invalid reset request.', 422);
-        }
-
-        $hash = hash('sha256', (string) $data['token']);
-        $stmt = db()->prepare(
-            'SELECT id, expires_at, consumed_at FROM password_resets
-             WHERE user_id = ? AND token_hash = ?
-             ORDER BY id DESC LIMIT 1'
-        );
-        $stmt->execute([$user['id'], $hash]);
-        $reset = $stmt->fetch();
 
         if (!$reset || !empty($reset['consumed_at']) || strtotime((string) $reset['expires_at']) <= time()) {
             Response::error('This reset link has expired. Please request a new password reset link.', 422, [
                 'action' => 'forgot-password',
-                'email' => $user['email'] ?? (string) $data['email'],
+                'email' => $reset['email'] ?? null,
                 '_form' => 'This reset link has expired. Please request a new password reset link.',
             ]);
         }
 
         db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([
             password_hash((string) $data['password'], PASSWORD_DEFAULT),
-            $user['id'],
+            $reset['user_id'],
         ]);
         db()->prepare('UPDATE password_resets SET consumed_at = NOW() WHERE id = ?')->execute([$reset['id']]);
-        db()->prepare('UPDATE user_sessions SET revoked_at = NOW() WHERE user_id = ?')->execute([$user['id']]);
-        SecurityLog::record('password_reset_completed', (int) $user['id']);
+        db()->prepare('UPDATE user_sessions SET revoked_at = NOW() WHERE user_id = ?')->execute([$reset['user_id']]);
+        SecurityLog::record('password_reset_completed', (int) $reset['user_id']);
 
         Response::ok(['message' => 'Password updated. Please log in again.']);
     }
 
     public function resetLinkStatus(array $data): void
     {
-        $errors = Validator::required($data, ['email', 'token']);
+        $errors = Validator::required($data, ['token']);
         if ($errors) {
             Response::error('This password reset link is missing or invalid. Please request a new password reset link.', 422, [
                 'action' => 'forgot-password',
@@ -311,35 +315,28 @@ final class AuthController
             ]);
         }
 
-        $email = strtolower(trim((string) $data['email']));
+        $email = strtolower(trim((string) ($data['email'] ?? '')));
         $token = hash('sha256', (string) $data['token']);
 
-        $user = $this->findUserByEmail($email);
-        if (!$user) {
-            Response::error('This password reset link is missing or invalid. Please request a new password reset link.', 422, [
-                'action' => 'forgot-password',
-                'email' => $email,
-                '_form' => 'This password reset link is missing or invalid. Please request a new password reset link.',
-            ]);
-        }
-
         $stmt = db()->prepare(
-            'SELECT expires_at, consumed_at FROM password_resets
-             WHERE user_id = ? AND token_hash = ?
-             ORDER BY id DESC LIMIT 1'
+            'SELECT pr.expires_at, pr.consumed_at, u.email
+             FROM password_resets pr
+             INNER JOIN users u ON u.id = pr.user_id
+             WHERE pr.token_hash = ?
+             ORDER BY pr.id DESC LIMIT 1'
         );
-        $stmt->execute([$user['id'], $token]);
+        $stmt->execute([$token]);
         $reset = $stmt->fetch();
 
         if (!$reset || !empty($reset['consumed_at']) || strtotime((string) $reset['expires_at']) <= time()) {
             Response::error('This password reset link has expired. Please request a new password reset link.', 422, [
                 'action' => 'forgot-password',
-                'email' => $email,
+                'email' => $reset['email'] ?? $email,
                 '_form' => 'This password reset link has expired. Please request a new password reset link.',
             ]);
         }
 
-        Response::ok(['message' => 'Reset link is valid.']);
+        Response::ok(['message' => 'Reset link is valid.', 'email' => $reset['email']]);
     }
 
     public function me(): void
