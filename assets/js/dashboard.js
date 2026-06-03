@@ -9,6 +9,7 @@ const dashboardShell = document.querySelector('#dashboardShell');
 const sessionKeyboardWarning = document.querySelector('#sessionKeyboardWarning');
 let activeSession = null;
 let sessionWarningTimer = null;
+let sessionIsOpen = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     showLoader('Loading dashboard...');
@@ -77,21 +78,26 @@ bindForm('#demoForm', async (_, form) => startAttempt(form, 'demo'));
 bindForm('#assessmentForm', async (_, form) => startAttempt(form, 'assessment'));
 
 function openSessionShell(mode) {
-    if (!sessionModal || !sessionMount) return;
+    if (!sessionModal || !sessionMount || !assessmentSessionTemplate) return;
     sessionTitle.textContent = mode === 'demo' ? 'Demo Session' : 'Assessment Session';
     sessionSubtitle.textContent = mode === 'demo'
         ? 'Sample questions with immediate feedback.'
         : 'Formal assessment in progress. Use mouse clicks only.';
+    sessionIsOpen = true;
     document.body.classList.add('session-open');
     dashboardShell?.setAttribute('inert', '');
     dashboardShell?.setAttribute('aria-hidden', 'true');
     sessionMount.innerHTML = '';
-    sessionMount.innerHTML = `
-        <div class="session-starting panel">
-            <h1>${mode === 'demo' ? 'Starting Demo' : 'Starting Assessment'}</h1>
-            <p>Please wait while your session is prepared.</p>
-        </div>
-    `;
+    sessionMount.appendChild(assessmentSessionTemplate.content.cloneNode(true));
+    sessionMount.querySelector('#modeLabel').textContent = mode === 'demo' ? 'Demo Mode' : 'Assessment Mode';
+    sessionMount.querySelector('#timer').textContent = '--:--';
+    sessionMount.querySelector('#questionNumber').textContent = mode === 'demo' ? 'Preparing demo' : 'Preparing assessment';
+    sessionMount.querySelector('#questionText').textContent = 'Preparing your session...';
+    sessionMount.querySelector('#options').innerHTML = '<div class="session-inline-loader">Loading questions and timer...</div>';
+    sessionMount.querySelector('#questionNav').innerHTML = '';
+    sessionMount.querySelectorAll('button').forEach((button) => {
+        button.disabled = true;
+    });
     sessionModal.classList.remove('hidden');
     sessionModal.setAttribute('aria-hidden', 'false');
     sessionModal.setAttribute('tabindex', '-1');
@@ -108,8 +114,6 @@ function mountAssessmentSession(attemptId, mode) {
         return;
     }
 
-    sessionMount.innerHTML = '';
-    sessionMount.appendChild(assessmentSessionTemplate.content.cloneNode(true));
     activeSession = window.AssessmentApp.mount(sessionMount, {
         attemptId,
         mode,
@@ -126,6 +130,7 @@ function closeSession() {
     }
     activeSession = null;
     sessionMount.innerHTML = '';
+    sessionIsOpen = false;
     sessionModal.classList.add('hidden');
     sessionModal.setAttribute('aria-hidden', 'true');
     sessionModal.removeAttribute('tabindex');
@@ -154,3 +159,14 @@ function showSessionKeyboardWarning(text = 'Keyboard input is disabled here. Ple
         sessionKeyboardWarning.classList.add('hidden');
     }, 2200);
 }
+
+window.addEventListener('beforeunload', (event) => {
+    if (!sessionIsOpen) return;
+    event.preventDefault();
+    event.returnValue = '';
+});
+
+document.addEventListener('fullscreenchange', () => {
+    if (!sessionIsOpen || document.fullscreenElement) return;
+    showSessionKeyboardWarning('Please stay in fullscreen during the assessment.');
+});

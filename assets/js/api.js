@@ -220,12 +220,15 @@ async function api(route, options = {}) {
 function bindForm(selector, handler) {
     const form = document.querySelector(selector);
     if (!form) return;
-    const loader = form.dataset.loader ? document.querySelector(form.dataset.loader) : null;
+    const loader = form.dataset.loader && form.dataset.loader !== 'none'
+        ? document.querySelector(form.dataset.loader)
+        : null;
+    const skipLoader = form.dataset.loader === 'none';
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = form.querySelector('button[type="submit"]');
         const message = document.querySelector(form.dataset.message || '#message');
-        const overlay = loader || getLoader();
+        const overlay = skipLoader ? null : (loader || getLoader());
         let succeeded = false;
         if (overlay) {
             overlay.classList.remove('hidden');

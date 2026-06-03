@@ -497,9 +497,13 @@ button:disabled {
     padding: 18px;
 }
 
-.session-starting {
-    width: min(520px, calc(100vw - 32px));
-    margin: 12vh auto 0;
+.session-inline-loader {
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 18px;
+    background: #f8fafc;
+    color: var(--muted);
+    font-weight: 700;
 }
 
 .session-result-shell {

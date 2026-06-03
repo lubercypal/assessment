@@ -33,7 +33,7 @@ $session = App\Services\AuthService::requirePage();
             <h1>Dashboard</h1>
             <p>Select a practice demo or start the formal assessment after reading the rules.</p>
             <div class="tiles">
-                <form id="demoForm" class="tile stack" data-message="#demoMessage">
+                <form id="demoForm" class="tile stack" data-message="#demoMessage" data-loader="none">
                     <h2>Take a Demo</h2>
                     <p>Sample questions with immediate answer feedback and explanations.</p>
                     <label class="field"><span>Subject</span><select name="category_id" required></select></label>
@@ -42,7 +42,7 @@ $session = App\Services\AuthService::requirePage();
                     <button type="submit" class="action-wide">Take the Demo</button>
                 </form>
 
-                <form id="assessmentForm" class="tile stack" data-message="#assessmentMessage">
+                <form id="assessmentForm" class="tile stack" data-message="#assessmentMessage" data-loader="none">
                     <h2>Take the Test</h2>
                     <label class="field"><span>Subject</span><select name="category_id" required></select></label>
                     <label class="field"><span>Topic</span><select name="topic_id"><option value="">Any topic</option></select></label>

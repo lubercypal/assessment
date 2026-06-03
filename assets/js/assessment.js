@@ -8,6 +8,7 @@
                 mode: options.mode || defaultParams.get('mode') || 'assessment',
                 kioskMode: options.kioskMode ?? defaultParams.get('kiosk') === '1',
                 inlineResult: options.inlineResult ?? false,
+                useGlobalLoader: options.useGlobalLoader ?? !(root instanceof HTMLElement),
                 onExit: typeof options.onExit === 'function' ? options.onExit : null,
             };
 
@@ -27,6 +28,7 @@
             let tickHandle = null;
             let remainingSeconds = 0;
             let warningNode = null;
+            let ownsWarningNode = false;
             let warningTimer = null;
 
             const on = (target, event, handler, options) => {
@@ -47,6 +49,18 @@
                 }
             };
 
+            const showBusy = (text) => {
+                if (state.useGlobalLoader) {
+                    showLoader(text);
+                }
+            };
+
+            const hideBusy = () => {
+                if (state.useGlobalLoader) {
+                    hideLoader();
+                }
+            };
+
             const showWarning = () => {
                 if (!warningNode) return;
                 warningNode.classList.remove('hidden');
@@ -55,11 +69,15 @@
             };
 
             const enableKioskMode = () => {
-                warningNode = document.createElement('div');
-                warningNode.id = 'keyboardWarning';
-                warningNode.className = 'keyboard-warning hidden';
-                warningNode.textContent = 'Keyboard input is disabled here. Please use mouse clicks only.';
-                document.body.appendChild(warningNode);
+                warningNode = document.querySelector('#sessionKeyboardWarning');
+                if (!warningNode) {
+                    warningNode = document.createElement('div');
+                    warningNode.id = 'keyboardWarning';
+                    warningNode.className = 'keyboard-warning hidden';
+                    warningNode.textContent = 'Keyboard input is disabled here. Please use mouse clicks only.';
+                    document.body.appendChild(warningNode);
+                    ownsWarningNode = true;
+                }
 
                 on(document, 'keydown', (event) => {
                     event.preventDefault();
@@ -111,7 +129,7 @@
             }
 
             async function loadQuestion(index) {
-                showLoader('Loading question...');
+                showBusy('Loading question...');
                 try {
                     const data = await api(`attempts/${state.attemptId}/question?index=${index}`);
                     currentIndex = data.index;
@@ -125,7 +143,7 @@
                     renderNavigator();
                     startTimer();
                 } finally {
-                    hideLoader();
+                    hideBusy();
                 }
             }
 
@@ -151,13 +169,16 @@
 
                 query('#previous').disabled = currentIndex === 0;
                 query('#next').disabled = currentIndex >= totalQuestions - 1;
+                query('#skip').disabled = false;
+                query('#review').disabled = false;
+                query('#submitTest').disabled = false;
             }
 
             async function save(status = 'answered') {
                 if (!currentQuestion) return null;
                 const selected = selectedOptionIds();
                 const finalStatus = status === 'answered' && selected.length === 0 ? 'skipped' : status;
-                showLoader('Saving answer...');
+                showBusy('Saving answer...');
                 let result;
                 try {
                     result = await api(`attempts/${state.attemptId}/answer`, {
@@ -169,7 +190,7 @@
                         }),
                     });
                 } finally {
-                    hideLoader();
+                    hideBusy();
                 }
                 statusMap.set(currentIndex, finalStatus);
                 renderNavigator();
@@ -281,7 +302,7 @@
             }
 
             async function submitAttempt() {
-                showLoader('Submitting assessment...');
+                showBusy('Submitting assessment...');
                 try {
                     await save('answered').catch(() => {});
                     const result = await api(`attempts/${state.attemptId}/submit`, { method: 'POST', body: '{}' });
@@ -293,7 +314,7 @@
                         window.location.replace(`result?attempt=${state.attemptId}`);
                     }
                 } finally {
-                    hideLoader();
+                    hideBusy();
                 }
             }
 
@@ -334,7 +355,11 @@
                     stopTimer();
                     cleanup.forEach((fn) => fn());
                     if (warningNode) {
-                        warningNode.remove();
+                        if (ownsWarningNode) {
+                            warningNode.remove();
+                        } else {
+                            warningNode.classList.add('hidden');
+                        }
                         warningNode = null;
                     }
                 },
