@@ -95,11 +95,22 @@ try {
 
     $message = strtolower($exception->getMessage());
     $status = 500;
+    $clientMessage = 'Server error.';
+
     if (str_contains($message, 'token') || str_contains($message, 'session') || str_contains($message, 'authentication')) {
         $status = 401;
+        $clientMessage = $exception->getMessage();
     }
     if (str_contains($message, 'csrf')) {
         $status = 419;
+        $clientMessage = $exception->getMessage();
     }
-    Response::error($status !== 500 ? $exception->getMessage() : 'Server error.', $status);
+    if ($exception instanceof \PDOException) {
+        $status = 503;
+        $clientMessage = 'Temporary service issue. Please try again in a moment.';
+    }
+    if ($exception instanceof \RuntimeException && $status === 500) {
+        $clientMessage = $exception->getMessage();
+    }
+    Response::error($clientMessage, $status);
 }
