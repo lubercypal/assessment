@@ -40,6 +40,39 @@ function showPageNotice() {
     }
 }
 
+async function checkResetLink() {
+    const form = document.querySelector('#resetForm');
+    if (!form) return;
+
+    const token = (form.dataset.token || '').trim();
+    const email = (form.dataset.email || '').trim();
+    const notice = document.querySelector('#pageNotice');
+    if (!token) {
+        return;
+    }
+
+    try {
+        await api('auth/reset-link-status', {
+            method: 'POST',
+            body: JSON.stringify({ email, token }),
+        });
+    } catch (error) {
+        if (notice) {
+            renderErrorSummary(notice, error);
+        } else {
+            showMessage(error.message, 'error', '#message');
+        }
+        form.querySelectorAll('input, button, a').forEach((node) => {
+            if (node.tagName === 'A') return;
+            node.disabled = true;
+        });
+        form.classList.add('hidden');
+        if (notice) {
+            notice.classList.remove('hidden');
+        }
+    }
+}
+
 bindForm('#registerForm', async (data) => {
     data.terms = document.querySelector('#terms').checked ? '1' : '';
     try {
@@ -142,3 +175,4 @@ bindForm('#resetForm', async (data) => {
 });
 
 showPageNotice();
+checkResetLink();

@@ -1,7 +1,9 @@
 <?php require_once __DIR__ . '/app/bootstrap.php'; ?>
 <?php
 $resetEmail = htmlspecialchars($_GET['email'] ?? '', ENT_QUOTES);
-$hasResetToken = !empty($_GET['token']);
+$resetToken = trim((string) ($_GET['token'] ?? ''));
+$hasResetToken = $resetToken !== '';
+$missingToken = !$hasResetToken;
 ?>
 <!doctype html>
 <html lang="en">
@@ -21,18 +23,27 @@ $hasResetToken = !empty($_GET['token']);
     </div>
     <main class="auth-shell panel">
         <h1>Set New Password</h1>
-        <form id="resetForm" class="stack">
-            <input type="hidden" name="token" value="<?php echo htmlspecialchars($_GET['token'] ?? '', ENT_QUOTES); ?>">
+        <div id="pageNotice" class="message <?php echo $missingToken ? 'error form-alert' : ''; ?>" role="alert" <?php echo $missingToken ? '' : 'hidden'; ?>>
+            <?php if ($missingToken): ?>
+                <strong>This password reset link is missing or invalid.</strong>
+                <div class="form-alert-cta">
+                    <a class="action-link secondary" href="forgot-password">Request Reset Link</a>
+                    <span>Please request a fresh password reset link to continue.</span>
+                </div>
+            <?php endif; ?>
+        </div>
+        <form id="resetForm" class="stack" data-message="#message" data-token="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>" data-email="<?php echo $resetEmail; ?>" <?php echo $missingToken ? 'hidden' : ''; ?>>
+            <input type="hidden" name="token" value="<?php echo htmlspecialchars($resetToken, ENT_QUOTES); ?>">
             <label class="field"><span>Email</span><input type="email" name="email" required value="<?php echo $resetEmail; ?>" <?php echo $hasResetToken ? 'readonly aria-readonly="true"' : ''; ?>></label>
             <label class="field"><span>New Password</span><input type="password" name="password" required autocomplete="new-password"></label>
             <label class="field"><span>Confirm Password</span><input type="password" name="password_confirmation" required autocomplete="new-password"></label>
             <div id="message" class="message"></div>
-            <div class="actions">
-                <button type="submit">Update Password</button>
+            <div class="verify-actions">
+                <button type="submit" class="action-wide">Update Password</button>
+                <a href="forgot-password" class="action-link secondary action-wide">Request Reset Link</a>
             </div>
-            <div class="auth-links">
-                <a href="login" class="action-link">Back to Login</a>
-                <a href="forgot-password" class="action-link">Request Reset Link</a>
+            <div class="auth-links auth-links-full">
+                <a href="login" class="action-link secondary">Back to Login</a>
             </div>
         </form>
     </main>

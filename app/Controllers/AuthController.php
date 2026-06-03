@@ -300,6 +300,48 @@ final class AuthController
         Response::ok(['message' => 'Password updated. Please log in again.']);
     }
 
+    public function resetLinkStatus(array $data): void
+    {
+        $errors = Validator::required($data, ['email', 'token']);
+        if ($errors) {
+            Response::error('This password reset link is missing or invalid. Please request a new password reset link.', 422, [
+                'action' => 'forgot-password',
+                'email' => strtolower(trim((string) ($data['email'] ?? ''))),
+                '_form' => 'This password reset link is missing or invalid. Please request a new password reset link.',
+            ]);
+        }
+
+        $email = strtolower(trim((string) $data['email']));
+        $token = hash('sha256', (string) $data['token']);
+
+        $user = $this->findUserByEmail($email);
+        if (!$user) {
+            Response::error('This password reset link is missing or invalid. Please request a new password reset link.', 422, [
+                'action' => 'forgot-password',
+                'email' => $email,
+                '_form' => 'This password reset link is missing or invalid. Please request a new password reset link.',
+            ]);
+        }
+
+        $stmt = db()->prepare(
+            'SELECT expires_at, consumed_at FROM password_resets
+             WHERE user_id = ? AND token_hash = ?
+             ORDER BY id DESC LIMIT 1'
+        );
+        $stmt->execute([$user['id'], $token]);
+        $reset = $stmt->fetch();
+
+        if (!$reset || !empty($reset['consumed_at']) || strtotime((string) $reset['expires_at']) <= time()) {
+            Response::error('This password reset link has expired. Please request a new password reset link.', 422, [
+                'action' => 'forgot-password',
+                'email' => $email,
+                '_form' => 'This password reset link has expired. Please request a new password reset link.',
+            ]);
+        }
+
+        Response::ok(['message' => 'Reset link is valid.']);
+    }
+
     public function me(): void
     {
         Response::ok(['user' => AuthService::user()]);

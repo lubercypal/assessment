@@ -58,6 +58,9 @@ try {
     if ($method === 'POST' && $path === 'auth/reset-password') {
         $auth->resetPassword($body);
     }
+    if ($method === 'POST' && $path === 'auth/reset-link-status') {
+        $auth->resetLinkStatus($body);
+    }
     if ($method === 'GET' && $path === 'auth/me') {
         $auth->me();
     }

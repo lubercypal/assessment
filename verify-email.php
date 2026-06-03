@@ -30,8 +30,8 @@ $locked = !empty($_GET['locked']);
                 <button id="sendOtpBtn" type="button" class="secondary action-wide">Re-send OTP</button>
                 <button type="submit" class="action-wide">Verify Email</button>
             </div>
-            <div class="auth-links">
-                <a href="login" class="action-link">Back to Login</a>
+            <div class="auth-links auth-links-full">
+                <a href="login" class="action-link secondary">Back to Login</a>
             </div>
         </form>
     </main>

@@ -21,11 +21,9 @@
         <form id="forgotForm" class="stack">
             <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="email"></label>
             <div id="message" class="message"></div>
-            <div class="actions">
-                <button type="submit">Send Reset Link</button>
-            </div>
-            <div class="auth-links">
-                <a href="login" class="action-link">Back to Login</a>
+            <div class="verify-actions">
+                <button type="submit" class="action-wide">Send Reset Link</button>
+                <a href="login" class="action-link secondary action-wide">Back to Login</a>
             </div>
         </form>
     </main>
