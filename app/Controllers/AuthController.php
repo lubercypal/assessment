@@ -136,6 +136,12 @@ final class AuthController
         if (!$user) {
             Response::error('Invalid verification request.', 404);
         }
+        if ($user['email_verified_at']) {
+            Response::error('This email is already verified. Please log in.', 409, [
+                'action' => 'login',
+                '_form' => 'This email is already verified. Please log in.',
+            ]);
+        }
 
         $stmt = db()->prepare(
             'SELECT id, otp_hash, expires_at, consumed_at,
@@ -198,7 +204,10 @@ final class AuthController
             Response::error('Email not found.', 404);
         }
         if ($user['email_verified_at']) {
-            Response::error('Email is already verified.', 409);
+            Response::error('This email is already verified. Please log in.', 409, [
+                'action' => 'login',
+                '_form' => 'This email is already verified. Please log in.',
+            ]);
         }
 
         try {

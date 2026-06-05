@@ -168,7 +168,7 @@ function renderErrorSummary(messageNode, error) {
         .map(([, value]) => Array.isArray(value) ? value.join(' ') : String(value || ''))
         .filter(Boolean);
 
-    if (error.status === 422 && (fields.length > 0 || details._form || details.action)) {
+    if ((error.status === 422 || details._form || details.action) && (fields.length > 0 || details._form || details.action)) {
         const action = details.action || '';
         const email = encodeURIComponent(String(details.email || ''));
         const actionMap = {
@@ -181,6 +181,8 @@ function renderErrorSummary(messageNode, error) {
             ? 'Use the Re-send OTP button below to continue.'
             : action === 'forgot-password'
                 ? 'Request a fresh password reset link to continue.'
+                : action === 'login'
+                    ? 'Continue from the login page.'
                 : 'Continue from the linked page.';
         const listItems = fields.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
         messageNode.innerHTML = `
