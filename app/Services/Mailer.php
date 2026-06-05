@@ -7,7 +7,16 @@ final class Mailer
     public static function send(string $to, string $subject, string $message): bool
     {
         $driver = strtolower(trim((string) app_config('mail_driver', 'mail')));
+        return self::sendWithDriver($driver, $to, $subject, $message);
+    }
 
+    public static function sendUsingDriver(string $driver, string $to, string $subject, string $message): bool
+    {
+        return self::sendWithDriver(strtolower(trim($driver)), $to, $subject, $message);
+    }
+
+    private static function sendWithDriver(string $driver, string $to, string $subject, string $message): bool
+    {
         if ($driver === 'log') {
             return self::log($to, $subject, $message);
         }
