@@ -7,6 +7,8 @@ return [
     'jwt_ttl_seconds' => 7200,
     'cookie_secure' => true,
     'db_host' => 'localhost',
+    'db_port' => null,
+    'db_socket' => null,
     'db_name' => 'assessment',
     'db_user' => 'assessment_user',
     'db_pass' => 'change-me',

@@ -118,10 +118,16 @@ final class AssessmentController
 
         $stmt = db()->prepare(
             'INSERT INTO assessment_responses (attempt_id, question_id, selected_option_ids, status, answered_at)
-             VALUES (?, ?, ?, ?, IF(? = "answered", NOW(), NULL))
+             VALUES (?, ?, ?, ?, IF(? = 1, NOW(), NULL))
              ON DUPLICATE KEY UPDATE selected_option_ids = VALUES(selected_option_ids), status = VALUES(status), answered_at = VALUES(answered_at)'
         );
-        $stmt->execute([$attemptId, (int) $data['question_id'], json_encode($selected), $status, $status]);
+        $stmt->execute([
+            $attemptId,
+            (int) $data['question_id'],
+            json_encode($selected),
+            $status,
+            $status === 'answered' ? 1 : 0,
+        ]);
 
         $payload = ['saved' => true];
         if ($attempt['mode'] === 'demo') {
@@ -228,8 +234,8 @@ final class AssessmentController
 
     private function score(int $attemptId): int
     {
-        $stmt = db()->prepare('SELECT question_id, selected_option_ids FROM assessment_responses WHERE attempt_id = ? AND status = "answered"');
-        $stmt->execute([$attemptId]);
+        $stmt = db()->prepare('SELECT question_id, selected_option_ids FROM assessment_responses WHERE attempt_id = ? AND status = ?');
+        $stmt->execute([$attemptId, 'answered']);
         $score = 0;
 
         foreach ($stmt->fetchAll() as $row) {
