@@ -6,18 +6,23 @@ final class Mailer
 {
     public static function send(string $to, string $subject, string $message): bool
     {
-        $driver = app_config('mail_driver', 'mail');
+        $driver = strtolower(trim((string) app_config('mail_driver', 'mail')));
 
         if ($driver === 'log') {
             return self::log($to, $subject, $message);
         }
 
-        if (in_array($driver, ['graph', 'oauth2', 'microsoft_graph'], true)) {
+        if (in_array($driver, ['graph', 'oauth2', 'oauth2.0', 'microsoft_graph', 'msgraph'], true)) {
             return self::graph($to, $subject, $message);
         }
 
         if ($driver === 'smtp') {
             return self::smtp($to, $subject, $message);
+        }
+
+        if ($driver !== 'mail') {
+            self::logError("Unknown mail driver configured: {$driver}\nTO: {$to}\nSUBJECT: {$subject}");
+            return false;
         }
 
         $from = app_config('mail_from');
@@ -54,6 +59,8 @@ final class Mailer
             self::logError('Microsoft Graph mail config missing: ' . implode(', ', $missing) . "\nTO: {$to}\nSUBJECT: {$subject}");
             return false;
         }
+
+        self::logDebug("Microsoft Graph sendMail started\nTO: {$to}\nSUBJECT: {$subject}\nSENDER: {$sender}\nTENANT: {$tenantId}");
 
         try {
             $token = self::graphAccessToken($tenantId, $clientId, $clientSecret);
@@ -95,6 +102,8 @@ final class Mailer
                 return false;
             }
 
+            self::logDebug("Microsoft Graph sendMail accepted\nSTATUS: {$response['status']}\nTO: {$to}\nSUBJECT: {$subject}\nSENDER: {$sender}");
+
             return true;
         } catch (\Throwable $exception) {
             self::logError(
@@ -109,6 +118,8 @@ final class Mailer
 
     private static function graphAccessToken(string $tenantId, string $clientId, string $clientSecret): ?string
     {
+        self::logDebug("Microsoft Graph token request started\nTENANT: {$tenantId}");
+
         $endpoint = 'https://login.microsoftonline.com/' . rawurlencode($tenantId) . '/oauth2/v2.0/token';
         $response = self::httpPostForm($endpoint, [
             'client_id' => $clientId,
@@ -128,6 +139,8 @@ final class Mailer
             );
             return null;
         }
+
+        self::logDebug("Microsoft Graph token request succeeded\nTENANT: {$tenantId}");
 
         return (string) $payload['access_token'];
     }
@@ -332,23 +345,52 @@ final class Mailer
 
     private static function logError(string $message): void
     {
+        self::writeLog('mail-error', $message, true);
+    }
+
+    private static function logDebug(string $message): void
+    {
+        if (!app_config('mail_debug_log', false)) {
+            return;
+        }
+
+        self::writeLog('mail-debug', $message, false);
+    }
+
+    private static function writeLog(string $channel, string $message, bool $isError): void
+    {
         $path = app_config(
-            'mail_error_log_path',
-            __DIR__ . '/../../storage/logs/mail-error.log'
+            $isError ? 'mail_error_log_path' : 'mail_debug_log_path',
+            __DIR__ . '/../../storage/logs/' . ($isError ? 'mail-error.log' : 'mail-debug.log')
         );
 
         $directory = dirname($path);
+        $entry = '[' . date('Y-m-d H:i:s') . "] {$channel}\n" . $message . "\n\n";
 
-        if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
+        if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+            self::fallbackLog($channel, $message, 'Could not create log directory: ' . $directory);
+            return;
         }
 
-        file_put_contents(
-            $path,
-            '[' . date('Y-m-d H:i:s') . "]\n" .
-            $message .
-            "\n\n",
-            FILE_APPEND | LOCK_EX
-        );
+        $written = file_put_contents($path, $entry, FILE_APPEND | LOCK_EX);
+        if ($written === false) {
+            self::fallbackLog($channel, $message, 'Could not write log file: ' . $path);
+        }
+    }
+
+    private static function fallbackLog(string $channel, string $message, string $reason): void
+    {
+        $entry = "{$channel}: {$reason}\n{$message}";
+        error_log($entry);
+
+        if (class_exists(ErrorLogger::class)) {
+            try {
+                ErrorLogger::log($channel, $reason, [
+                    'mail_message' => $message,
+                ]);
+            } catch (\Throwable) {
+                // PHP error_log above is the last-resort fallback.
+            }
+        }
     }
 }

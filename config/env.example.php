@@ -16,6 +16,8 @@ return [
     'app_error_log_path' => __DIR__ . '/../storage/logs/app-error.log',
     'mail_log_path' => __DIR__ . '/../storage/logs/mail.log',
     'mail_error_log_path' => __DIR__ . '/../storage/logs/mail-error.log',
+    'mail_debug_log' => false,
+    'mail_debug_log_path' => __DIR__ . '/../storage/logs/mail-debug.log',
     'mail_from' => 'no-reply@assessment.netcascade.in',
     'mail_from_name' => 'Assessment Platform',
     'smtp_host' => 'smtp.office365.com',
