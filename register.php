@@ -33,7 +33,7 @@
                 <div class="register-actions">
                     <button type="submit" class="action-wide">Register</button>
                     <a href="login" class="action-link secondary action-wide">Cancel</a>
-                    <a href="verify-email" class="action-link action-wide">Verify Email</a>
+                    <a href="verify-email" class="action-link secondary action-wide">Verify Email</a>
                 </div>
             </form>
         </section>
