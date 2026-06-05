@@ -39,6 +39,10 @@ function normalizeIndianMobileDigits(value) {
     return digits.slice(0, 10);
 }
 
+function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
 function readQuery(name) {
     return new URLSearchParams(window.location.search).get(name) || '';
 }
@@ -138,19 +142,24 @@ if (registerMobileInput) {
 
 bindForm('#otpForm', async (data) => {
     await api('auth/verify-email', { method: 'POST', body: JSON.stringify(data) });
-    window.location.href = 'login';
+    sessionStorage.removeItem(otpKey(data.email));
+    showMessage('Email verified successfully. Redirecting to login...');
+    setTimeout(() => window.location.href = 'login', 1200);
 });
 
 const sendOtpBtn = document.querySelector('#sendOtpBtn');
 if (sendOtpBtn) {
     const emailInput = document.querySelector('#otpEmail');
     sendOtpBtn.dataset.baseLabel = 'Re-send OTP';
-    const syncCooldown = () => {
+    const resetResendButton = () => {
+        stopCooldown(sendOtpBtn);
+        sendOtpBtn.disabled = false;
+        sendOtpBtn.textContent = sendOtpBtn.dataset.baseLabel;
+    };
+    const resumeCooldownForEmail = () => {
         const email = (emailInput?.value || '').trim().toLowerCase();
-        if (!email) {
-            stopCooldown(sendOtpBtn);
-            sendOtpBtn.disabled = true;
-            sendOtpBtn.textContent = sendOtpBtn.dataset.baseLabel;
+        resetResendButton();
+        if (!isValidEmail(email)) {
             return;
         }
 
@@ -159,20 +168,18 @@ if (sendOtpBtn) {
         const remaining = Math.max(0, 45 - elapsed);
         if (remaining > 0) {
             startCooldown(sendOtpBtn, remaining);
-        } else {
-            stopCooldown(sendOtpBtn);
-            sendOtpBtn.disabled = false;
-            sendOtpBtn.textContent = sendOtpBtn.dataset.baseLabel;
         }
     };
 
-    emailInput?.addEventListener('input', syncCooldown);
-    syncCooldown();
+    emailInput?.addEventListener('input', resetResendButton);
+    emailInput?.addEventListener('blur', resumeCooldownForEmail);
+    resumeCooldownForEmail();
 
     sendOtpBtn.addEventListener('click', async () => {
         const email = (emailInput?.value || '').trim();
-        if (!email) {
-            showMessage('Enter your email first.', 'error');
+        if (!isValidEmail(email)) {
+            showMessage('Enter a valid email address before requesting an OTP.', 'error');
+            emailInput?.focus();
             return;
         }
 
