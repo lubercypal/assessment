@@ -29,6 +29,10 @@ final class AuthController
         if (($data['password'] ?? '') !== ($data['password_confirmation'] ?? '')) {
             $errors['password_confirmation'] = 'Passwords do not match.';
         }
+        $mobileNumber = $this->normalizeIndianMobile((string) ($data['mobile_number'] ?? ''));
+        if (!$mobileNumber) {
+            $errors['mobile_number'] = 'Enter a valid 10-digit Indian mobile number. You may enter it with or without +91.';
+        }
         if ($message = Validator::password((string) ($data['password'] ?? ''))) {
             $errors['password'] = $message;
         }
@@ -80,7 +84,7 @@ final class AuthController
             $stmt->execute([
                 trim((string) $data['full_name']),
                 $email,
-                trim((string) $data['mobile_number']),
+                $mobileNumber,
                 password_hash((string) $data['password'], PASSWORD_DEFAULT),
             ]);
 
@@ -130,7 +134,9 @@ final class AuthController
         }
 
         $stmt = db()->prepare(
-            'SELECT id, otp_hash, expires_at, consumed_at FROM email_otps
+            'SELECT id, otp_hash, expires_at, consumed_at,
+                    CASE WHEN consumed_at IS NULL AND expires_at > NOW() THEN 1 ELSE 0 END AS is_valid
+             FROM email_otps
              WHERE user_id = ?
              ORDER BY id DESC LIMIT 1'
         );
@@ -145,7 +151,7 @@ final class AuthController
             ]);
         }
 
-        if (!empty($otp['consumed_at']) || strtotime((string) $otp['expires_at']) <= time()) {
+        if ((int) ($otp['is_valid'] ?? 0) !== 1) {
             Response::error('This OTP has expired. Please re-send the OTP to continue.', 422, [
                 'action' => 'resend-otp',
                 'email' => $email,
@@ -418,15 +424,20 @@ final class AuthController
 
     private function otpCooldown(int $userId, int $cooldownSeconds): array
     {
-        $stmt = db()->prepare('SELECT created_at FROM email_otps WHERE user_id = ? ORDER BY id DESC LIMIT 1');
+        $stmt = db()->prepare(
+            'SELECT TIMESTAMPDIFF(SECOND, created_at, NOW()) AS elapsed_seconds
+             FROM email_otps
+             WHERE user_id = ?
+             ORDER BY id DESC LIMIT 1'
+        );
         $stmt->execute([$userId]);
-        $lastSent = $stmt->fetchColumn();
+        $elapsed = $stmt->fetchColumn();
 
-        if (!$lastSent) {
+        if ($elapsed === false || $elapsed === null) {
             return ['blocked' => false, 'retry_after_seconds' => 0];
         }
 
-        $elapsed = time() - strtotime((string) $lastSent);
+        $elapsed = max(0, (int) $elapsed);
         if ($elapsed < $cooldownSeconds) {
             return [
                 'blocked' => true,
@@ -441,6 +452,22 @@ final class AuthController
     {
         $stmt = db()->prepare('INSERT INTO email_otps (user_id, otp_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))');
         $stmt->execute([$userId, password_hash($otp, PASSWORD_DEFAULT)]);
+    }
+
+    private function normalizeIndianMobile(string $mobile): ?string
+    {
+        $digits = preg_replace('/\D+/', '', $mobile) ?? '';
+        if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
+            $digits = substr($digits, 2);
+        }
+        if (strlen($digits) === 11 && str_starts_with($digits, '0')) {
+            $digits = substr($digits, 1);
+        }
+        if (!preg_match('/^[6-9]\d{9}$/', $digits)) {
+            return null;
+        }
+
+        return '+91' . $digits;
     }
 
     private function findUserByEmail(string $email): ?array

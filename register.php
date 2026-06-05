@@ -23,7 +23,7 @@
             <form id="registerForm" class="stack" data-loader="#registerLoader" data-message="#message">
                 <label class="field"><span>Full Name</span><input name="full_name" required autocomplete="name"></label>
                 <label class="field"><span>Email ID</span><input type="email" name="email" required autocomplete="email"></label>
-                <label class="field"><span>Mobile Number</span><input name="mobile_number" required autocomplete="tel"></label>
+                <label class="field"><span>Mobile Number</span><input name="mobile_number" required autocomplete="tel" inputmode="numeric" maxlength="14" placeholder="10-digit Indian mobile number"></label>
                 <div class="grid">
                     <label class="field"><span>Password</span><input type="password" name="password" required autocomplete="new-password"></label>
                     <label class="field"><span>Confirm Password</span><input type="password" name="password_confirmation" required autocomplete="new-password"></label>

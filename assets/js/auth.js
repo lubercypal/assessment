@@ -4,20 +4,39 @@ function otpKey(email) {
 
 function startCooldown(button, seconds) {
     if (!button) return;
+    stopCooldown(button);
     let remaining = seconds;
     const baseLabel = button.dataset.baseLabel || button.textContent.trim() || 'Re-send OTP';
     button.disabled = true;
     button.textContent = `${baseLabel} (${remaining}s)`;
-    const timer = setInterval(() => {
+    button.cooldownTimer = setInterval(() => {
         remaining -= 1;
         if (remaining <= 0) {
-            clearInterval(timer);
+            clearInterval(button.cooldownTimer);
+            button.cooldownTimer = null;
             button.disabled = false;
             button.textContent = baseLabel;
             return;
         }
         button.textContent = `${baseLabel} (${remaining}s)`;
     }, 1000);
+}
+
+function stopCooldown(button) {
+    if (!button?.cooldownTimer) return;
+    clearInterval(button.cooldownTimer);
+    button.cooldownTimer = null;
+}
+
+function normalizeIndianMobileDigits(value) {
+    let digits = String(value || '').replace(/\D+/g, '');
+    if (digits.length === 12 && digits.startsWith('91')) {
+        digits = digits.slice(2);
+    }
+    if (digits.length === 11 && digits.startsWith('0')) {
+        digits = digits.slice(1);
+    }
+    return digits.slice(0, 10);
 }
 
 function readQuery(name) {
@@ -89,6 +108,7 @@ function showLoginThrottleCountdown(seconds) {
 
 bindForm('#registerForm', async (data) => {
     data.terms = document.querySelector('#terms').checked ? '1' : '';
+    data.mobile_number = normalizeIndianMobileDigits(data.mobile_number);
     try {
         const result = await api('auth/register', { method: 'POST', body: JSON.stringify(data) });
         const nextEmail = result.email || data.email;
@@ -109,6 +129,13 @@ bindForm('#registerForm', async (data) => {
     }
 });
 
+const registerMobileInput = document.querySelector('#registerForm [name="mobile_number"]');
+if (registerMobileInput) {
+    registerMobileInput.addEventListener('blur', () => {
+        registerMobileInput.value = normalizeIndianMobileDigits(registerMobileInput.value);
+    });
+}
+
 bindForm('#otpForm', async (data) => {
     await api('auth/verify-email', { method: 'POST', body: JSON.stringify(data) });
     window.location.href = 'login';
@@ -121,6 +148,7 @@ if (sendOtpBtn) {
     const syncCooldown = () => {
         const email = (emailInput?.value || '').trim().toLowerCase();
         if (!email) {
+            stopCooldown(sendOtpBtn);
             sendOtpBtn.disabled = true;
             sendOtpBtn.textContent = sendOtpBtn.dataset.baseLabel;
             return;
@@ -132,6 +160,7 @@ if (sendOtpBtn) {
         if (remaining > 0) {
             startCooldown(sendOtpBtn, remaining);
         } else {
+            stopCooldown(sendOtpBtn);
             sendOtpBtn.disabled = false;
             sendOtpBtn.textContent = sendOtpBtn.dataset.baseLabel;
         }
