@@ -23,6 +23,7 @@ $result = [
     'status' => 'blocked',
     'message' => 'Test mail is not enabled.',
     'driver' => null,
+    'configured_driver' => strtolower(trim((string) app_config('mail_driver', 'mail'))),
     'to' => null,
 ];
 
@@ -30,31 +31,36 @@ if (!$enabled || $expectedKey === '' || !hash_equals($expectedKey, $providedKey)
     $statusCode = 403;
     $result['message'] = 'Mail test is disabled or the test key is invalid.';
 } else {
-    $driver = strtolower(trim((string) ($_GET['driver'] ?? 'graph')));
-    $allowedDrivers = ['graph', 'smtp'];
+    $driver = strtolower(trim((string) ($_GET['driver'] ?? 'config')));
+    $allowedDrivers = ['config', 'graph', 'smtp'];
     $to = trim((string) ($_GET['to'] ?? app_config('test_mail_default_to', '')));
+    $effectiveDriver = $driver === 'config'
+        ? strtolower(trim((string) app_config('mail_driver', 'mail')))
+        : $driver;
 
-    $result['driver'] = $driver;
+    $result['driver'] = $effectiveDriver;
     $result['to'] = $to;
 
     if (!in_array($driver, $allowedDrivers, true)) {
         $statusCode = 400;
         $result['status'] = 'invalid-driver';
-        $result['message'] = 'Invalid driver. Use driver=graph or driver=smtp.';
+        $result['message'] = 'Invalid driver. Use driver=config, driver=graph, or driver=smtp.';
     } elseif (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
         $statusCode = 400;
         $result['status'] = 'invalid-recipient';
         $result['message'] = 'Provide a valid recipient email using the to parameter.';
     } else {
-        $subject = 'Assessment mail delivery test via ' . strtoupper($driver);
+        $subject = 'Assessment mail delivery test via ' . strtoupper($effectiveDriver);
         $message = implode("\n", [
             'This is a direct assessment platform mail delivery test.',
-            'Driver: ' . strtoupper($driver),
+            'Driver: ' . strtoupper($effectiveDriver),
             'Time: ' . date('Y-m-d H:i:s T'),
             'Host: ' . ($_SERVER['HTTP_HOST'] ?? 'unknown'),
         ]);
 
-        $sent = Mailer::sendUsingDriver($driver, $to, $subject, $message);
+        $sent = $driver === 'config'
+            ? Mailer::send($to, $subject, $message)
+            : Mailer::sendUsingDriver($driver, $to, $subject, $message);
         $result['ok'] = $sent;
         $result['status'] = $sent ? 'accepted' : 'failed';
         $result['message'] = $sent
@@ -91,6 +97,7 @@ if ($format === 'json') {
         <div class="stack">
             <p><strong>Status:</strong> <?= page_text($result['status']) ?></p>
             <p><strong>Driver:</strong> <?= page_text((string) ($result['driver'] ?? '-')) ?></p>
+            <p><strong>Configured Driver:</strong> <?= page_text((string) ($result['configured_driver'] ?? '-')) ?></p>
             <p><strong>Recipient:</strong> <?= page_text((string) ($result['to'] ?? '-')) ?></p>
         </div>
         <p class="muted">
