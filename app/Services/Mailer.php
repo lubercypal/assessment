@@ -229,6 +229,8 @@ final class Mailer
         $from = app_config('mail_from');
         $fromName = app_config('mail_from_name');
 
+        self::logDebug("SMTP send started\nTO: {$to}\nSUBJECT: {$subject}\nHOST: {$host}\nPORT: {$port}\nSECURE: {$secure}\nFROM: {$from}");
+
         $transport = $secure === 'ssl' ? "ssl://{$host}" : $host;
         $socket = stream_socket_client("{$transport}:{$port}", $errno, $errstr, 20, STREAM_CLIENT_CONNECT);
 
@@ -272,6 +274,8 @@ final class Mailer
             self::command($socket, $body, [250]);
             self::command($socket, 'QUIT', [221]);
             fclose($socket);
+
+            self::logDebug("SMTP send accepted\nTO: {$to}\nSUBJECT: {$subject}\nHOST: {$host}\nFROM: {$from}");
 
             return true;
         } catch (\RuntimeException $e) {

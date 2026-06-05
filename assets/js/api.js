@@ -133,7 +133,7 @@ function renderErrorSummary(messageNode, error) {
         const tick = (node, remaining) => {
             const mins = Math.floor(remaining / 60);
             const secs = remaining % 60;
-            node.textContent = `Too many login attempts. Please wait ${mins}m ${String(secs).padStart(2, '0')}s before trying again.`;
+            node.textContent = `${error.message || 'Too many requests.'} Please wait ${mins}m ${String(secs).padStart(2, '0')}s before trying again.`;
         };
 
         messageNode.innerHTML = '<span class="countdown-copy"></span>';

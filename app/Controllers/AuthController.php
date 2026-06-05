@@ -13,8 +13,11 @@ final class AuthController
 {
     public function register(array $data): void
     {
-        if (!RateLimiter::hit('register', RateLimiter::ip(), 10, 3600)) {
-            Response::error('Too many registration attempts. Please try later.', 429);
+        $registerKey = RateLimiter::ip();
+        if (!RateLimiter::hit('register', $registerKey, 10, 3600)) {
+            Response::error('Too many registration attempts. Please try later.', 429, [
+                'retry_after_seconds' => RateLimiter::retryAfter('register', $registerKey),
+            ]);
         }
 
         $errors = Validator::required($data, ['full_name', 'email', 'mobile_number', 'password', 'password_confirmation', 'terms']);
@@ -114,8 +117,11 @@ final class AuthController
         }
 
         $email = strtolower(trim((string) $data['email']));
-        if (!RateLimiter::hit('verify_email', RateLimiter::ip() . '|' . $email, 8, 900)) {
-            Response::error('Too many OTP attempts. Please try later.', 429);
+        $verifyKey = RateLimiter::ip() . '|' . $email;
+        if (!RateLimiter::hit('verify_email', $verifyKey, 8, 900)) {
+            Response::error('Too many OTP attempts. Please try later.', 429, [
+                'retry_after_seconds' => RateLimiter::retryAfter('verify_email', $verifyKey),
+            ]);
         }
 
         $user = $this->findUserByEmail($email);
@@ -170,8 +176,11 @@ final class AuthController
         }
 
         $email = strtolower(trim((string) $data['email']));
-        if (!RateLimiter::hit('resend_otp', RateLimiter::ip() . '|' . $email, 3, 900)) {
-            Response::error('Too many OTP resend requests. Please try later.', 429);
+        $resendKey = RateLimiter::ip() . '|' . $email;
+        if (!RateLimiter::hit('resend_otp', $resendKey, 3, 900)) {
+            Response::error('Too many OTP resend requests. Please try later.', 429, [
+                'retry_after_seconds' => RateLimiter::retryAfter('resend_otp', $resendKey),
+            ]);
         }
 
         $user = $this->findUserByEmail($email);
@@ -245,8 +254,11 @@ final class AuthController
         }
 
         $email = strtolower(trim((string) $data['email']));
-        if (!RateLimiter::hit('forgot_password', RateLimiter::ip() . '|' . $email, 4, 3600)) {
-            Response::error('Too many password reset requests. Please try later.', 429);
+        $rateKey = RateLimiter::ip() . '|' . $email;
+        if (!RateLimiter::hit('forgot_password', $rateKey, 4, 3600)) {
+            Response::error('Too many password reset requests. Please try later.', 429, [
+                'retry_after_seconds' => RateLimiter::retryAfter('forgot_password', $rateKey),
+            ]);
         }
 
         $user = $this->findUserByEmail($email);

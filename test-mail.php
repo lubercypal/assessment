@@ -94,8 +94,9 @@ if ($format === 'json') {
             <p><strong>Recipient:</strong> <?= page_text((string) ($result['to'] ?? '-')) ?></p>
         </div>
         <p class="muted">
-            Graph returning accepted only means Microsoft accepted the send request. If a later bounce occurs,
-            check the sender mailbox and Microsoft 365 delivery reports.
+            <?= (($result['driver'] ?? '') === 'graph')
+                ? 'Graph returning accepted only means Microsoft accepted the send request. If a later bounce occurs, check the sender mailbox and Microsoft 365 delivery reports.'
+                : 'SMTP returning accepted means the configured SMTP server accepted the message. If a later bounce occurs, check the sender mailbox and provider delivery logs.' ?>
         </p>
     </main>
 </body>
