@@ -100,9 +100,12 @@ function showFieldErrors(form, details = {}) {
 
         const input = form.querySelector(`[name="${CSS.escape(field)}"]`);
         if (!input) return;
+        const message = Array.isArray(value) ? value.join(' ') : String(value || '');
+        if (field === 'email' && details.action && message.toLowerCase() === String(input.value || '').trim().toLowerCase()) {
+            return;
+        }
 
         input.setAttribute('aria-invalid', 'true');
-        const message = Array.isArray(value) ? value.join(' ') : String(value || '');
         const container = input.closest('.field') || input.parentElement;
         if (!container) return;
 
@@ -156,7 +159,12 @@ function renderErrorSummary(messageNode, error) {
     }
 
     const fields = Object.entries(details)
-        .filter(([key]) => !['_form', 'action', 'retry_after_seconds'].includes(key))
+        .filter(([key, value]) => {
+            if (['_form', 'action', 'retry_after_seconds'].includes(key)) {
+                return false;
+            }
+            return !(key === 'email' && details.action && String(value || '').includes('@'));
+        })
         .map(([, value]) => Array.isArray(value) ? value.join(' ') : String(value || ''))
         .filter(Boolean);
 
@@ -258,7 +266,7 @@ function bindForm(selector, handler) {
             if (overlay) {
                 overlay.classList.add('hidden');
             }
-            if (message && succeeded) {
+            if (message && succeeded && message.textContent === 'Working...') {
                 message.textContent = '';
                 message.className = 'message';
             }
@@ -270,7 +278,8 @@ function showMessage(text, type = 'success', selector = '#message') {
     const node = document.querySelector(selector);
     if (!node) return;
     node.textContent = text;
-    node.className = `message ${type}`;
+    node.className = `message ${type} form-alert`;
+    node.setAttribute('role', type === 'success' ? 'status' : 'alert');
 }
 
 async function requireAuth() {

@@ -12,6 +12,10 @@ final class Mailer
             return self::log($to, $subject, $message);
         }
 
+        if (in_array($driver, ['graph', 'oauth2', 'microsoft_graph'], true)) {
+            return self::graph($to, $subject, $message);
+        }
+
         if ($driver === 'smtp') {
             return self::smtp($to, $subject, $message);
         }
@@ -30,6 +34,167 @@ final class Mailer
         }
 
         return $ok;
+    }
+
+    private static function graph(string $to, string $subject, string $message): bool
+    {
+        $tenantId = trim((string) app_config('graph_tenant_id', ''));
+        $clientId = trim((string) app_config('graph_client_id', ''));
+        $clientSecret = (string) app_config('graph_client_secret', '');
+        $sender = trim((string) app_config('graph_sender', app_config('mail_from')));
+
+        $missing = array_keys(array_filter([
+            'graph_tenant_id' => $tenantId === '',
+            'graph_client_id' => $clientId === '',
+            'graph_client_secret' => $clientSecret === '',
+            'graph_sender' => $sender === '',
+        ]));
+
+        if ($missing) {
+            self::logError('Microsoft Graph mail config missing: ' . implode(', ', $missing) . "\nTO: {$to}\nSUBJECT: {$subject}");
+            return false;
+        }
+
+        try {
+            $token = self::graphAccessToken($tenantId, $clientId, $clientSecret);
+            if (!$token) {
+                return false;
+            }
+
+            $endpoint = 'https://graph.microsoft.com/v1.0/users/' . rawurlencode($sender) . '/sendMail';
+            $payload = [
+                'message' => [
+                    'subject' => $subject,
+                    'body' => [
+                        'contentType' => 'Text',
+                        'content' => $message,
+                    ],
+                    'toRecipients' => [[
+                        'emailAddress' => [
+                            'address' => $to,
+                        ],
+                    ]],
+                ],
+                'saveToSentItems' => (bool) app_config('graph_save_to_sent_items', true),
+            ];
+
+            $response = self::httpPostJson($endpoint, $payload, [
+                'Authorization: Bearer ' . $token,
+            ]);
+
+            if (!in_array($response['status'], [200, 202], true)) {
+                self::logError(
+                    "Microsoft Graph sendMail failed\n" .
+                    "STATUS: {$response['status']}\n" .
+                    "TO: {$to}\n" .
+                    "SUBJECT: {$subject}\n" .
+                    "SENDER: {$sender}\n" .
+                    'RESPONSE: ' . self::compactLogBody($response['body']) .
+                    ($response['error'] ? "\nHTTP ERROR: {$response['error']}" : '')
+                );
+                return false;
+            }
+
+            return true;
+        } catch (\Throwable $exception) {
+            self::logError(
+                "Microsoft Graph sendMail exception\n" .
+                "TO: {$to}\n" .
+                "SUBJECT: {$subject}\n" .
+                'ERROR: ' . $exception->getMessage()
+            );
+            return false;
+        }
+    }
+
+    private static function graphAccessToken(string $tenantId, string $clientId, string $clientSecret): ?string
+    {
+        $endpoint = 'https://login.microsoftonline.com/' . rawurlencode($tenantId) . '/oauth2/v2.0/token';
+        $response = self::httpPostForm($endpoint, [
+            'client_id' => $clientId,
+            'scope' => 'https://graph.microsoft.com/.default',
+            'client_secret' => $clientSecret,
+            'grant_type' => 'client_credentials',
+        ]);
+
+        $payload = json_decode($response['body'], true);
+        if ($response['status'] !== 200 || !is_array($payload) || empty($payload['access_token'])) {
+            self::logError(
+                "Microsoft Graph token request failed\n" .
+                "STATUS: {$response['status']}\n" .
+                "TENANT: {$tenantId}\n" .
+                'RESPONSE: ' . self::compactLogBody($response['body']) .
+                ($response['error'] ? "\nHTTP ERROR: {$response['error']}" : '')
+            );
+            return null;
+        }
+
+        return (string) $payload['access_token'];
+    }
+
+    private static function httpPostForm(string $url, array $fields): array
+    {
+        return self::httpRequest($url, http_build_query($fields), [
+            'Content-Type: application/x-www-form-urlencoded',
+        ]);
+    }
+
+    private static function httpPostJson(string $url, array $payload, array $headers = []): array
+    {
+        return self::httpRequest($url, json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), [
+            ...$headers,
+            'Content-Type: application/json',
+        ]);
+    }
+
+    private static function httpRequest(string $url, string $body, array $headers): array
+    {
+        if (function_exists('curl_init')) {
+            $curl = curl_init($url);
+            curl_setopt_array($curl, [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $body,
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HEADER => false,
+                CURLOPT_TIMEOUT => 25,
+            ]);
+            $responseBody = curl_exec($curl);
+            $error = curl_error($curl);
+            $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+            curl_close($curl);
+
+            return [
+                'status' => $status,
+                'body' => $responseBody === false ? '' : (string) $responseBody,
+                'error' => $error,
+            ];
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => implode("\r\n", $headers),
+                'content' => $body,
+                'ignore_errors' => true,
+                'timeout' => 25,
+            ],
+        ]);
+
+        $responseBody = file_get_contents($url, false, $context);
+        $status = 0;
+        foreach (($http_response_header ?? []) as $header) {
+            if (preg_match('/^HTTP\/\S+\s+(\d+)/', $header, $matches)) {
+                $status = (int) $matches[1];
+                break;
+            }
+        }
+
+        return [
+            'status' => $status,
+            'body' => $responseBody === false ? '' : (string) $responseBody,
+            'error' => $responseBody === false ? 'HTTP request failed.' : '',
+        ];
     }
 
     private static function smtp(string $to, string $subject, string $message): bool
@@ -153,6 +318,16 @@ final class Mailer
     private static function encodeHeader(string $value): string
     {
         return '=?UTF-8?B?' . base64_encode($value) . '?=';
+    }
+
+    private static function compactLogBody(string $body): string
+    {
+        $body = trim($body);
+        if ($body === '') {
+            return '[empty]';
+        }
+
+        return strlen($body) > 2000 ? substr($body, 0, 2000) . '...[truncated]' : $body;
     }
 
     private static function logError(string $message): void

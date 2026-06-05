@@ -23,4 +23,9 @@ return [
     'smtp_secure' => 'tls',
     'smtp_username' => 'mailbox@example.com',
     'smtp_password' => 'change-me',
+    'graph_tenant_id' => 'your-tenant-id-or-domain',
+    'graph_client_id' => 'your-azure-app-client-id',
+    'graph_client_secret' => 'your-azure-app-client-secret',
+    'graph_sender' => 'mailbox@example.com',
+    'graph_save_to_sent_items' => true,
 ];

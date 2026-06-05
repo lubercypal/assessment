@@ -46,7 +46,11 @@ final class AuthController
         }
 
         if ($existing && !$existing['email_verified_at']) {
-            $result = $this->issueOtp((int) $existing['id'], $email, 45);
+            try {
+                $result = $this->issueOtp((int) $existing['id'], $email, 45);
+            } catch (\RuntimeException $exception) {
+                Response::error($exception->getMessage(), 500);
+            }
             if ($result['cooldown']) {
                 Response::error($result['message'], 429, [
                     'retry_after_seconds' => $result['retry_after_seconds'],
@@ -178,7 +182,11 @@ final class AuthController
             Response::error('Email is already verified.', 409);
         }
 
-        $result = $this->issueOtp((int) $user['id'], $email, 45);
+        try {
+            $result = $this->issueOtp((int) $user['id'], $email, 45);
+        } catch (\RuntimeException $exception) {
+            Response::error($exception->getMessage(), 500);
+        }
         if ($result['cooldown']) {
             Response::error($result['message'], 429, [
                 'retry_after_seconds' => $result['retry_after_seconds'],
@@ -242,17 +250,27 @@ final class AuthController
         }
 
         $user = $this->findUserByEmail($email);
-        if ($user) {
-            $token = bin2hex(random_bytes(32));
-            $stmt = db()->prepare('INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))');
-            $stmt->execute([$user['id'], hash('sha256', $token)]);
-
-            $link = rtrim(app_config('app_url'), '/') . '/reset-password?token=' . urlencode($token) . '&email=' . urlencode($email);
-            Mailer::send($email, 'Reset your assessment password', "Use this secure link within 30 minutes:\n\n{$link}");
-            SecurityLog::record('password_reset_requested', (int) $user['id'], ['email' => $email]);
+        if (!$user) {
+            Response::error('No account was found for this email address. Please check the email or register first.', 404, [
+                'email' => 'No registered account was found for this email address.',
+            ]);
         }
 
-        Response::ok(['message' => 'If the email exists, a reset link has been sent.']);
+        $token = bin2hex(random_bytes(32));
+        $stmt = db()->prepare('INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))');
+        $stmt->execute([$user['id'], hash('sha256', $token)]);
+        $resetId = (int) db()->lastInsertId();
+
+        $link = rtrim(app_config('app_url'), '/') . '/reset-password?token=' . urlencode($token) . '&email=' . urlencode($email);
+        $sent = Mailer::send($email, 'Reset your assessment password', "Use this secure link within 30 minutes:\n\n{$link}");
+        if (!$sent) {
+            db()->prepare('DELETE FROM password_resets WHERE id = ?')->execute([$resetId]);
+            Response::error('We could not send the reset email right now. Please try again later.', 500);
+        }
+
+        SecurityLog::record('password_reset_requested', (int) $user['id'], ['email' => $email]);
+
+        Response::ok(['message' => 'Password reset link sent successfully. Please check your email.']);
     }
 
     public function resetPassword(array $data): void
@@ -374,10 +392,11 @@ final class AuthController
             ];
         }
 
-        $otp = $this->createOtp($userId);
+        $otp = (string) random_int(100000, 999999);
         if (!Mailer::send($email, 'Your assessment verification OTP', "Your OTP is {$otp}. It expires in 10 minutes.")) {
             throw new \RuntimeException('OTP email could not be sent. Please check the mail log.');
         }
+        $this->storeOtp($userId, $otp);
 
         return [
             'cooldown' => false,
@@ -406,12 +425,10 @@ final class AuthController
         return ['blocked' => false, 'retry_after_seconds' => 0];
     }
 
-    private function createOtp(int $userId): string
+    private function storeOtp(int $userId, string $otp): void
     {
-        $otp = (string) random_int(100000, 999999);
         $stmt = db()->prepare('INSERT INTO email_otps (user_id, otp_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))');
         $stmt->execute([$userId, password_hash($otp, PASSWORD_DEFAULT)]);
-        return $otp;
     }
 
     private function findUserByEmail(string $email): ?array

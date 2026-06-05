@@ -320,6 +320,12 @@ button:disabled {
     background: rgba(180, 35, 24, 0.06);
 }
 
+.form-alert.success {
+    border-color: rgba(21, 128, 61, 0.26);
+    border-left-color: var(--ok);
+    background: rgba(21, 128, 61, 0.08);
+}
+
 .form-alert strong {
     display: block;
     margin-bottom: 8px;

@@ -187,8 +187,8 @@ if (sendOtpBtn) {
 });
 
 bindForm('#forgotForm', async (data) => {
-    await api('auth/forgot-password', { method: 'POST', body: JSON.stringify(data) });
-    showMessage('If the email exists, a reset link has been sent.');
+    const result = await api('auth/forgot-password', { method: 'POST', body: JSON.stringify(data) });
+    showMessage(result.message || 'Password reset link sent successfully. Please check your email.');
 });
 
 bindForm('#resetForm', async (data) => {
