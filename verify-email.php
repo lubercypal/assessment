@@ -25,7 +25,7 @@ $locked = !empty($_GET['locked']);
         <p>Enter the OTP sent to your registered email address. If you have not received one yet, send a fresh OTP from here.</p>
         <form id="otpForm" class="stack" data-message="#message">
             <label class="field"><span>Email</span><input id="otpEmail" type="email" name="email" required value="<?php echo $email; ?>" <?php echo $locked ? 'readonly aria-readonly="true"' : ''; ?>></label>
-            <label class="field"><span>OTP</span><input name="otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required></label>
+            <label class="field"><span>OTP</span><input id="otpCode" name="otp" inputmode="numeric" pattern="\d{6}" maxlength="6" autocomplete="one-time-code" required></label>
             <div id="message" class="message"></div>
             <div class="verify-actions">
                 <button id="sendOtpBtn" type="button" class="secondary action-wide">Re-send OTP</button>

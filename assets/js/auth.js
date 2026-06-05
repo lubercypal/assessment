@@ -29,7 +29,12 @@ function stopCooldown(button) {
 }
 
 function normalizeIndianMobileDigits(value) {
-    let digits = String(value || '').replace(/\D+/g, '');
+    const raw = String(value || '').trim();
+    const hasIndiaPrefix = raw.startsWith('+91') || raw.startsWith('91');
+    let digits = raw.replace(/\D+/g, '');
+    if (!hasIndiaPrefix && digits.length > 10) {
+        return digits;
+    }
     if (digits.length === 12 && digits.startsWith('91')) {
         digits = digits.slice(2);
     }
@@ -136,16 +141,45 @@ bindForm('#registerForm', async (data) => {
 const registerMobileInput = document.querySelector('#registerForm [name="mobile_number"]');
 if (registerMobileInput) {
     registerMobileInput.addEventListener('blur', () => {
-        registerMobileInput.value = normalizeIndianMobileDigits(registerMobileInput.value);
+        const mobileWarning = 'Enter exactly 10 digits, or include +91 for an Indian mobile number with country code.';
+        const normalized = normalizeIndianMobileDigits(registerMobileInput.value);
+        registerMobileInput.value = normalized;
+        const rawDigits = String(normalized || '').replace(/\D+/g, '');
+        const startsWithIndiaCode = String(registerMobileInput.value || '').trim().startsWith('+91')
+            || String(registerMobileInput.value || '').trim().startsWith('91');
+        if (!startsWithIndiaCode && rawDigits.length > 10) {
+            showMessage(mobileWarning, 'error');
+            return;
+        }
+
+        const message = document.querySelector('#message');
+        if (message?.textContent === mobileWarning) {
+            message.textContent = '';
+            message.className = 'message';
+        }
     });
 }
 
 bindForm('#otpForm', async (data) => {
+    data.otp = String(data.otp || '').replace(/\D+/g, '').slice(0, 6);
+    if (!/^\d{6}$/.test(data.otp)) {
+        throw Object.assign(new Error('Enter the 6-digit OTP.'), {
+            status: 422,
+            details: { otp: 'OTP must be exactly 6 digits.' },
+        });
+    }
     await api('auth/verify-email', { method: 'POST', body: JSON.stringify(data) });
     sessionStorage.removeItem(otpKey(data.email));
-    showMessage('Email verified successfully. Redirecting to login...');
-    setTimeout(() => window.location.href = 'login', 1200);
+    showMessage('Email verified successfully. Redirecting to login...', 'success');
+    setTimeout(() => window.location.href = 'login', 2800);
 });
+
+const otpCodeInput = document.querySelector('#otpCode');
+if (otpCodeInput) {
+    otpCodeInput.addEventListener('input', () => {
+        otpCodeInput.value = otpCodeInput.value.replace(/\D+/g, '').slice(0, 6);
+    });
+}
 
 const sendOtpBtn = document.querySelector('#sendOtpBtn');
 if (sendOtpBtn) {

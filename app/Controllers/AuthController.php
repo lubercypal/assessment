@@ -29,9 +29,10 @@ final class AuthController
         if (($data['password'] ?? '') !== ($data['password_confirmation'] ?? '')) {
             $errors['password_confirmation'] = 'Passwords do not match.';
         }
-        $mobileNumber = $this->normalizeIndianMobile((string) ($data['mobile_number'] ?? ''));
+        $mobile = $this->normalizeIndianMobile((string) ($data['mobile_number'] ?? ''));
+        $mobileNumber = $mobile['normalized'];
         if (!$mobileNumber) {
-            $errors['mobile_number'] = 'Enter a valid 10-digit Indian mobile number. You may enter it with or without +91.';
+            $errors['mobile_number'] = $mobile['message'];
         }
         if ($message = Validator::password((string) ($data['password'] ?? ''))) {
             $errors['password'] = $message;
@@ -116,6 +117,9 @@ final class AuthController
     public function verifyEmail(array $data): void
     {
         $errors = Validator::required($data, ['email', 'otp']);
+        if (!empty($data['otp']) && !preg_match('/^\d{6}$/', (string) $data['otp'])) {
+            $errors['otp'] = 'OTP must be exactly 6 digits.';
+        }
         if ($errors) {
             Response::error('Validation failed.', 422, $errors);
         }
@@ -454,9 +458,17 @@ final class AuthController
         $stmt->execute([$userId, password_hash($otp, PASSWORD_DEFAULT)]);
     }
 
-    private function normalizeIndianMobile(string $mobile): ?string
+    private function normalizeIndianMobile(string $mobile): array
     {
+        $raw = trim($mobile);
+        $hasIndiaPrefix = str_starts_with($raw, '+91') || str_starts_with($raw, '91');
         $digits = preg_replace('/\D+/', '', $mobile) ?? '';
+        if (!$hasIndiaPrefix && strlen($digits) > 10) {
+            return [
+                'normalized' => null,
+                'message' => 'Enter exactly 10 digits, or include +91 for an Indian mobile number with country code.',
+            ];
+        }
         if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
             $digits = substr($digits, 2);
         }
@@ -464,10 +476,16 @@ final class AuthController
             $digits = substr($digits, 1);
         }
         if (!preg_match('/^[6-9]\d{9}$/', $digits)) {
-            return null;
+            return [
+                'normalized' => null,
+                'message' => 'Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.',
+            ];
         }
 
-        return '+91' . $digits;
+        return [
+            'normalized' => '+91' . $digits,
+            'message' => '',
+        ];
     }
 
     private function findUserByEmail(string $email): ?array
