@@ -54,10 +54,11 @@ function readQuery(name) {
 
 function showPageNotice() {
     const notice = readQuery('notice');
+    const reason = readQuery('reason');
     const message = document.querySelector('#message');
     const loginForm = document.querySelector('#loginForm');
     const forgotForm = document.querySelector('#forgotForm');
-    if (!notice || !message || (!loginForm && !forgotForm)) return;
+    if ((!notice && !reason) || !message || (!loginForm && !forgotForm)) return;
 
     const notices = {
         already_verified: 'This email is already verified. Please log in.',
@@ -65,8 +66,13 @@ function showPageNotice() {
         reset_link_required: 'Please request a new password reset link to continue.',
     };
 
-    if (notices[notice]) {
-        message.textContent = notices[notice];
+    const reasons = {
+        timeout: 'Your session timed out after 7 minutes 30 seconds of inactivity. Please log in again.',
+    };
+
+    const copy = notices[notice] || reasons[reason];
+    if (copy) {
+        message.textContent = copy;
         message.className = 'message error';
     }
 }

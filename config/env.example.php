@@ -5,6 +5,7 @@ return [
     'jwt_secret' => 'change-this-to-a-long-random-secret',
     'jwt_issuer' => 'assessment.netcascade.in',
     'jwt_ttl_seconds' => 7200,
+    'session_idle_timeout_seconds' => 450,
     'cookie_secure' => true,
     'db_host' => 'localhost',
     'db_port' => null,

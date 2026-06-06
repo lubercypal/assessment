@@ -183,6 +183,9 @@ window.addEventListener('beforeunload', (event) => {
 });
 
 document.addEventListener('fullscreenchange', () => {
+    if (typeof markSessionActivity === 'function') {
+        markSessionActivity();
+    }
     if (!sessionIsOpen || intentionalFullscreenExit) return;
     if (document.fullscreenElement) {
         hideFullscreenExitGuard();

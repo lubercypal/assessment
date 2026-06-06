@@ -37,9 +37,12 @@ function hideLoader() {
     loader.classList.add('hidden');
 }
 
-const SESSION_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+const SESSION_IDLE_TIMEOUT_MS = 450 * 1000;
+const SESSION_TOUCH_INTERVAL_MS = 60 * 1000;
 let sessionIdleTimer = null;
 let sessionTimeoutBound = false;
+let sessionTouchInFlight = false;
+let lastSessionTouchAt = 0;
 
 function clearSessionTimeout() {
     if (sessionIdleTimer) {
@@ -50,19 +53,44 @@ function clearSessionTimeout() {
 
 function startSessionTimeout() {
     clearSessionTimeout();
-    const reset = () => {
-        clearSessionTimeout();
-        sessionIdleTimer = setTimeout(logoutDueToTimeout, SESSION_IDLE_TIMEOUT_MS);
-    };
 
     if (!sessionTimeoutBound) {
-        ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach((eventName) => {
-            document.addEventListener(eventName, reset, { passive: true, capture: true });
+        ['pointermove', 'pointerdown', 'mousemove', 'mousedown', 'keydown', 'wheel', 'scroll', 'touchstart', 'touchmove', 'click'].forEach((eventName) => {
+            document.addEventListener(eventName, markSessionActivity, { passive: true, capture: true });
+            window.addEventListener(eventName, markSessionActivity, { passive: true, capture: true });
         });
         sessionTimeoutBound = true;
     }
 
-    reset();
+    markSessionActivity();
+}
+
+function markSessionActivity() {
+    clearSessionTimeout();
+    sessionIdleTimer = setTimeout(logoutDueToTimeout, SESSION_IDLE_TIMEOUT_MS);
+    touchSessionIfNeeded();
+}
+
+async function touchSessionIfNeeded(force = false) {
+    const now = Date.now();
+    if (!force && now - lastSessionTouchAt < SESSION_TOUCH_INTERVAL_MS) {
+        return;
+    }
+    if (sessionTouchInFlight) {
+        return;
+    }
+
+    sessionTouchInFlight = true;
+    lastSessionTouchAt = now;
+    try {
+        await api('auth/me');
+    } catch (error) {
+        if ([401, 419].includes(Number(error.status || 0))) {
+            logoutDueToTimeout();
+        }
+    } finally {
+        sessionTouchInFlight = false;
+    }
 }
 
 async function logoutDueToTimeout() {
@@ -287,6 +315,7 @@ function showMessage(text, type = 'success', selector = '#message') {
 async function requireAuth() {
     try {
         const session = await api('auth/me');
+        lastSessionTouchAt = Date.now();
         startSessionTimeout();
         return session;
     } catch {

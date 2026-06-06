@@ -17,7 +17,8 @@ final class AuthService
         $sessionId = bin2hex(random_bytes(32));
         $csrfToken = bin2hex(random_bytes(32));
         $ttl = (int) app_config('jwt_ttl_seconds', 7200);
-        $expiresAt = date('Y-m-d H:i:s', $now + $ttl);
+        $idleTtl = self::idleTimeoutSeconds();
+        $expiresAt = date('Y-m-d H:i:s', $now + $idleTtl);
 
         $claims = [
             'iss' => app_config('jwt_issuer'),
@@ -27,14 +28,16 @@ final class AuthService
             'sid' => $sessionId,
         ];
 
-        $stmt = db()->prepare('INSERT INTO user_sessions (id, user_id, csrf_token_hash, ip_address, user_agent, expires_at) VALUES (?, ?, ?, ?, ?, ?)');
+        $stmt = db()->prepare(
+            'INSERT INTO user_sessions (id, user_id, csrf_token_hash, ip_address, user_agent, expires_at)
+             VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ' . $idleTtl . ' SECOND))'
+        );
         $stmt->execute([
             $sessionId,
             $userId,
             hash('sha256', $csrfToken),
             $_SERVER['REMOTE_ADDR'] ?? null,
             substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
-            $expiresAt,
         ]);
 
         $token = Jwt::encode($claims, app_config('jwt_secret'));
@@ -71,6 +74,8 @@ final class AuthService
         if (!$user) {
             throw new RuntimeException('Invalid or expired session.');
         }
+
+        self::touchSession((string) $user['session_id']);
 
         $sessionData = [
             'id' => $user['session_id'],
@@ -159,5 +164,24 @@ final class AuthService
     private static function secureCookie(): bool
     {
         return (bool) app_config('cookie_secure', app_config('app_env') === 'production');
+    }
+
+    private static function idleTimeoutSeconds(): int
+    {
+        $jwtTtl = max(60, (int) app_config('jwt_ttl_seconds', 7200));
+        $idleTtl = max(60, (int) app_config('session_idle_timeout_seconds', 450));
+
+        return min($jwtTtl, $idleTtl);
+    }
+
+    private static function touchSession(string $sessionId): void
+    {
+        $ttl = self::idleTimeoutSeconds();
+        $stmt = db()->prepare(
+            'UPDATE user_sessions
+             SET expires_at = DATE_ADD(NOW(), INTERVAL ' . $ttl . ' SECOND)
+             WHERE id = ? AND revoked_at IS NULL'
+        );
+        $stmt->execute([$sessionId]);
     }
 }
