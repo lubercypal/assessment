@@ -174,7 +174,18 @@ bindForm('#otpForm', async (data) => {
             details: { otp: 'OTP must be exactly 6 digits.' },
         });
     }
-    await api('auth/verify-email', { method: 'POST', body: JSON.stringify(data) });
+    try {
+        await api('auth/verify-email', { method: 'POST', body: JSON.stringify(data) });
+    } catch (error) {
+        const expiredMessage = `${error.message || ''} ${error.details?._form || ''}`.toLowerCase();
+        if (expiredMessage.includes('otp') && expiredMessage.includes('expired')) {
+            const otpInput = document.querySelector('#otpCode');
+            if (otpInput) {
+                otpInput.value = '';
+            }
+        }
+        throw error;
+    }
     sessionStorage.removeItem(otpKey(data.email));
     showMessage('Email verified successfully. Redirecting to login...', 'success');
     setTimeout(() => window.location.href = 'login', 2800);
