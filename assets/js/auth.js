@@ -79,6 +79,17 @@ function showPageNotice() {
 
 let loginThrottleTimer = null;
 
+document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+    const input = document.getElementById(button.dataset.passwordToggle || '');
+    if (!input) return;
+    button.addEventListener('click', () => {
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        button.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+        button.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+    });
+});
+
 function clearLoginThrottleCountdown() {
     if (loginThrottleTimer) {
         clearInterval(loginThrottleTimer);

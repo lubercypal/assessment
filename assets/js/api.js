@@ -28,6 +28,8 @@ function showLoader(text = 'Working...') {
     if (label) {
         label.textContent = text;
     }
+    loader.hidden = false;
+    loader.removeAttribute('hidden');
     loader.classList.remove('hidden');
 }
 
@@ -35,6 +37,8 @@ function hideLoader() {
     const loader = getLoader();
     if (!loader) return;
     loader.classList.add('hidden');
+    loader.hidden = true;
+    loader.setAttribute('hidden', '');
 }
 
 const SESSION_IDLE_TIMEOUT_MS = 450 * 1000;
