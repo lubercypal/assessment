@@ -154,7 +154,26 @@ function closeSession() {
     if (document.fullscreenElement === sessionModal && document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
     }
+    resetDashboardForms();
     document.querySelector('#demoForm button[type="submit"]')?.focus();
+}
+
+function resetDashboardForms() {
+    document.querySelectorAll('#demoForm, #assessmentForm').forEach((form) => {
+        form.reset();
+        const topic = form.querySelector('[name="topic_id"]');
+        if (topic) {
+            topic.innerHTML = '<option value="">Any topic</option>';
+        }
+    });
+
+    ['#demoMessage', '#assessmentMessage'].forEach((selector) => {
+        const message = document.querySelector(selector);
+        if (message) {
+            message.textContent = '';
+            message.className = 'message';
+        }
+    });
 }
 
 window.addEventListener('keydown', (event) => {

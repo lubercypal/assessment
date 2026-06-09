@@ -31,7 +31,9 @@ final class AssessmentController
         }
 
         $mode = ($data['mode'] ?? '') === 'demo' ? 'demo' : 'assessment';
-        $limit = $mode === 'demo' ? 5 : 30;
+        $limit = $mode === 'demo'
+            ? self::configInt('demo_question_count', 5, 1, 100)
+            : self::configInt('assessment_question_count', 30, 1, 300);
         $duration = $mode === 'demo' ? 900 : 3600;
         $categoryId = (int) $data['category_id'];
         $topicId = !empty($data['topic_id']) ? (int) $data['topic_id'] : null;
@@ -75,6 +77,12 @@ final class AssessmentController
             'total_questions' => count($questionIds),
             'duration_seconds' => $duration,
         ], 201);
+    }
+
+    private static function configInt(string $key, int $default, int $min, int $max): int
+    {
+        $value = (int) app_config($key, $default);
+        return max($min, min($max, $value));
     }
 
     public function question(int $attemptId, array $query): void

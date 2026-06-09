@@ -6,6 +6,8 @@ return [
     'jwt_issuer' => 'assessment.netcascade.in',
     'jwt_ttl_seconds' => 7200,
     'session_idle_timeout_seconds' => 450,
+    'demo_question_count' => 5,
+    'assessment_question_count' => 30,
     'cookie_secure' => true,
     'db_host' => 'localhost',
     'db_port' => null,
