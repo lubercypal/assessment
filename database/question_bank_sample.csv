@@ -1,0 +1,5 @@
+Subject,Topic,Question Text,Question Type,Option A,Option B,Option C,Option D,Correct Option,Explanation,Mode,Active
+Mathematics,Algebra,What is the value of 2x + 3 when x = 4?,single,9,11,14,16,B,"Substitute x = 4, so 2(4) + 3 = 11.",demo,1
+Physics,Mechanics,Which quantity is measured in Newtons?,single,Force,Energy,Power,Pressure,A,Newton is the SI unit of force.,demo,1
+Biology,Cell Biology,Which of the following are cell organelles?,multi,Nucleus,Mitochondria,Glucose,Ribosome,"A,B,D","Nucleus, mitochondria, and ribosome are organelles; glucose is a molecule.",assessment,1
+Mathematics,Geometry,How many degrees are there in a right angle?,single,45,60,90,180,C,A right angle measures 90 degrees.,assessment,1

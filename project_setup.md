@@ -276,4 +276,52 @@ Mail module:
 - OTP and reset email delivery.
 - Provider-driven transport with error logging.
 
+Question bank import procedure:
+- Temporary import format: CSV, not `.xlsx`.
+- Maintain questions in Excel or Google Sheets, then export/download as CSV.
+- Sample file: `database/question_bank_sample.csv`.
+- Upload working CSV files to `storage/imports/` on the server.
+- Current importer: `scripts/import_question_bank.php`.
+
+CSV columns:
+- `Subject`
+- `Topic`
+- `Question Text`
+- `Question Type`: `single` or `multi`
+- `Option A`
+- `Option B`
+- `Option C`
+- `Option D`
+- Optional extra option columns up to `Option H`
+- `Correct Option`: `A` for single, `A,B,D` for multi
+- `Explanation`
+- `Mode`: `demo` or `assessment`
+- `Active`: `1` active, `0` inactive
+
+Import behavior:
+- The importer creates missing subjects in `categories`.
+- The importer creates missing topics in `topics`.
+- The importer inserts each question into `questions`.
+- The importer inserts options into `question_options`.
+- The importer runs inside one DB transaction; if one row fails, the full import rolls back.
+
+Production import steps:
+1. Prepare the question bank in Excel or Google Sheets.
+2. Export/download the sheet as CSV.
+3. Upload the CSV to `~/domains/assessment.netcascade.in/public_html/storage/imports/question_bank.csv`.
+4. SSH into the server.
+5. Go to the project root:
+   `cd ~/domains/assessment.netcascade.in/public_html`
+6. Validate without saving:
+   `php scripts/import_question_bank.php storage/imports/question_bank.csv --dry-run`
+7. If the dry-run passes, import for real:
+   `php scripts/import_question_bank.php storage/imports/question_bank.csv`
+8. Test the dashboard subject/topic dropdowns and start a demo/assessment.
+
+Important:
+- Do not manage `category_id`, `topic_id`, or `question_id` manually in CSV.
+- Use names in the CSV; the importer resolves IDs internally.
+- Re-importing the same file will create duplicate questions because the current importer is append-only.
+- Build the future admin/import page on top of the same one-file CSV format.
+
 If you are continuing development from this point, treat this document as the canonical project handoff. Update it whenever the architecture, endpoints, schema, or major UI flows change.
