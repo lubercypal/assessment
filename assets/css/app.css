@@ -63,15 +63,15 @@ a {
 
 .login-page {
     place-items: center;
-    padding: 12px;
+    padding: 28px 18px;
     background: #edf3f9;
 }
 
 .login-shell {
-    width: min(1440px, calc(100vw - 24px));
-    min-height: calc(100vh - 24px);
+    width: min(1180px, 100%);
+    min-height: 620px;
     display: grid;
-    grid-template-columns: minmax(380px, 500px) minmax(0, 1fr);
+    grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
     border: 1px solid rgba(145, 158, 177, 0.28);
     border-radius: 12px;
     overflow: hidden;
@@ -84,8 +84,8 @@ a {
     display: grid;
     grid-template-rows: auto auto 1fr auto auto;
     gap: 24px;
-    min-height: calc(100vh - 24px);
-    padding: 32px;
+    min-height: 620px;
+    padding: 30px;
     overflow: hidden;
     background:
         radial-gradient(circle at 48% 43%, rgba(45, 212, 191, 0.16), transparent 26%),
@@ -301,7 +301,7 @@ circle.shield-key {
     border: 0;
     border-radius: 0;
     box-shadow: none;
-    padding: 54px 42px;
+    padding: 48px 42px;
 }
 
 .login-card__header,
