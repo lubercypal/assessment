@@ -63,15 +63,15 @@ a {
 
 .login-page {
     place-items: center;
-    padding: 18px;
+    padding: 12px;
     background: #edf3f9;
 }
 
 .login-shell {
-    width: min(1240px, 100%);
-    min-height: 610px;
+    width: min(1440px, calc(100vw - 24px));
+    min-height: calc(100vh - 24px);
     display: grid;
-    grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
+    grid-template-columns: minmax(380px, 500px) minmax(0, 1fr);
     border: 1px solid rgba(145, 158, 177, 0.28);
     border-radius: 12px;
     overflow: hidden;
@@ -84,8 +84,8 @@ a {
     display: grid;
     grid-template-rows: auto auto 1fr auto auto;
     gap: 24px;
-    min-height: 610px;
-    padding: 28px;
+    min-height: calc(100vh - 24px);
+    padding: 32px;
     overflow: hidden;
     background:
         radial-gradient(circle at 48% 43%, rgba(45, 212, 191, 0.16), transparent 26%),
@@ -126,9 +126,14 @@ a {
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
 }
 
-.login-brand-icon img {
-    width: 34px;
-    height: 34px;
+.login-brand-icon svg {
+    width: 28px;
+    height: 28px;
+    fill: none;
+    stroke: #0f766e;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .login-welcome-copy {
@@ -183,6 +188,50 @@ a {
     width: 180px;
     height: 180px;
     filter: drop-shadow(0 18px 35px rgba(37, 99, 235, 0.28));
+}
+
+.shield-lines {
+    fill: none;
+    stroke: rgba(45, 212, 191, 0.36);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.shield-outer {
+    fill: rgba(37, 99, 235, 0.08);
+    stroke: rgba(96, 165, 250, 0.55);
+    stroke-width: 4;
+}
+
+.shield-inner {
+    fill: rgba(15, 118, 110, 0.12);
+    stroke: rgba(45, 212, 191, 0.32);
+    stroke-width: 3;
+}
+
+.shield-lock-body {
+    fill: rgba(20, 102, 128, 0.82);
+    stroke: rgba(147, 197, 253, 0.9);
+    stroke-width: 3;
+}
+
+.shield-lock-arc {
+    fill: none;
+    stroke: rgba(226, 232, 240, 0.92);
+    stroke-width: 9;
+    stroke-linecap: round;
+}
+
+.shield-key {
+    fill: none;
+    stroke: #e2e8f0;
+    stroke-width: 4;
+    stroke-linecap: round;
+}
+
+circle.shield-key {
+    fill: #e2e8f0;
+    stroke: none;
 }
 
 .login-trust-grid {
@@ -291,6 +340,13 @@ a {
     font-weight: 700;
 }
 
+.login-forgot-link {
+    justify-self: end;
+    margin-top: -2px;
+    font-size: 12px;
+    font-weight: 750;
+}
+
 .login-input-wrap {
     position: relative;
 }
@@ -354,12 +410,12 @@ a {
     background: var(--line);
 }
 
-.login-links-three {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+.login-links-two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
 }
 
-.login-links-three > :nth-child(3) {
+.login-links-two > :nth-child(3) {
     grid-column: auto;
 }
 
@@ -1065,7 +1121,7 @@ body.session-open {
         font-size: 26px;
     }
 
-    .login-links-three {
+    .login-links-two {
         grid-template-columns: 1fr;
     }
 
