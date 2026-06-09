@@ -1,0 +1,359 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import csv
+import html
+import os
+import zipfile
+from datetime import datetime, timezone
+
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUTPUT_DIR = os.path.join(ROOT, "outputs")
+IMPORT_DIR = os.path.join(ROOT, "storage", "imports")
+XLSX_PATH = os.path.join(OUTPUT_DIR, "question_bank_100.xlsx")
+CSV_PATH = os.path.join(IMPORT_DIR, "question_bank_100.csv")
+
+HEADERS = [
+    "Subject",
+    "Topic",
+    "Question Text",
+    "Question Type",
+    "Option A",
+    "Option B",
+    "Option C",
+    "Option D",
+    "Correct Option",
+    "Explanation",
+    "Mode",
+    "Active",
+]
+
+
+def q(subject, topic, text, qtype, options, correct, explanation, mode, active=1):
+    return {
+        "Subject": subject,
+        "Topic": topic,
+        "Question Text": text,
+        "Question Type": qtype,
+        "Option A": options[0],
+        "Option B": options[1],
+        "Option C": options[2],
+        "Option D": options[3],
+        "Correct Option": correct,
+        "Explanation": explanation,
+        "Mode": mode,
+        "Active": active,
+    }
+
+
+def rows():
+    data = []
+    banks = {
+        ("Mathematics", "Algebra"): [
+            ("Solve for x: x + 7 = 15.", "single", ["6", "7", "8", "9"], "C", "Subtract 7 from both sides to get x = 8."),
+            ("Which expressions are equivalent to 3(x + 2)?", "multi", ["3x + 6", "3x + 2", "6 + 3x", "x + 6"], "A,C", "Distribute 3 across x and 2 to get 3x + 6."),
+            ("If 5a = 35, what is a?", "single", ["5", "6", "7", "8"], "C", "Divide both sides by 5 to get a = 7."),
+            ("Which equations have x = 4 as a solution?", "multi", ["x + 3 = 7", "2x = 8", "x^2 = 12", "10 - x = 6"], "A,B,D", "Substitute x = 4 and check which equations remain true."),
+            ("Simplify 4y - y + 2y.", "single", ["3y", "5y", "6y", "7y"], "B", "Combine like terms: 4y - y + 2y = 5y."),
+            ("Which are linear equations?", "multi", ["y = 2x + 1", "x^2 + 1 = 5", "3x - 2 = 10", "xy = 6"], "A,C", "Linear equations have variables only to the first power and no variable products."),
+            ("If p / 3 = 6, what is p?", "single", ["2", "9", "18", "21"], "C", "Multiply both sides by 3 to get p = 18."),
+            ("Which pairs are like terms?", "multi", ["3a and 5a", "2x and 2y", "7mn and mn", "x^2 and x"], "A,C", "Like terms have the same variables raised to the same powers."),
+            ("What is the value of 2^3 + 4?", "single", ["10", "11", "12", "14"], "C", "2^3 = 8, and 8 + 4 = 12."),
+            ("Expand (x + 5) + (x + 2).", "single", ["x + 7", "2x + 7", "2x + 10", "x^2 + 7"], "B", "Combine x + x and 5 + 2 to get 2x + 7."),
+        ],
+        ("Mathematics", "Geometry"): [
+            ("What is the sum of the interior angles of a triangle?", "single", ["90 degrees", "120 degrees", "180 degrees", "360 degrees"], "C", "The interior angles of any triangle sum to 180 degrees."),
+            ("Which shapes always have all sides equal?", "multi", ["Square", "Equilateral triangle", "Rhombus", "Rectangle"], "A,B,C", "Each listed correct shape has all sides equal by definition."),
+            ("What is the perimeter of a square with side length 6 cm?", "single", ["12 cm", "18 cm", "24 cm", "36 cm"], "C", "Perimeter of a square is 4 x side = 4 x 6 = 24 cm."),
+            ("Which shapes have at least one pair of parallel sides?", "multi", ["Rectangle", "Trapezium", "Triangle", "Parallelogram"], "A,B,D", "These shapes include at least one pair of parallel sides."),
+            ("What is the area of a rectangle of length 8 cm and width 5 cm?", "single", ["13 sq cm", "26 sq cm", "40 sq cm", "80 sq cm"], "C", "Area = length x width = 8 x 5 = 40 sq cm."),
+            ("Which descriptions represent a right angle?", "multi", ["90 degrees", "A quarter turn", "Angle made by perpendicular lines", "180 degrees"], "A,B,C", "A right angle is 90 degrees, or one quarter of a full turn."),
+            ("What is the diameter of a circle with radius 7 cm?", "single", ["7 cm", "14 cm", "21 cm", "49 cm"], "B", "Diameter is twice the radius, so 2 x 7 = 14 cm."),
+            ("Which solids have a curved surface?", "multi", ["Sphere", "Cylinder", "Cube", "Cone"], "A,B,D", "A cube has only flat faces; the others include curved surfaces."),
+            ("How many diagonals does a rectangle have?", "single", ["1", "2", "3", "4"], "B", "A rectangle has two diagonals connecting opposite vertices."),
+            ("Complementary angles add up to what measure?", "single", ["45 degrees", "90 degrees", "180 degrees", "360 degrees"], "B", "Complementary angles add up to 90 degrees."),
+        ],
+        ("Physics", "Mechanics"): [
+            ("What is the SI unit of force?", "single", ["Joule", "Newton", "Watt", "Pascal"], "B", "Force is measured in newtons."),
+            ("Which are scalar quantities?", "multi", ["Mass", "Speed", "Work", "Velocity"], "A,B,C", "Scalars have magnitude only; velocity also has direction."),
+            ("A velocity changes by 10 m/s in 5 s. What is the acceleration?", "single", ["1 m/s^2", "2 m/s^2", "5 m/s^2", "50 m/s^2"], "B", "Acceleration = change in velocity / time = 10 / 5 = 2 m/s^2."),
+            ("A force can change which properties of an object?", "multi", ["Speed", "Direction", "Shape", "Color"], "A,B,C", "Forces can change motion or shape, not color directly."),
+            ("A runner covers 100 m in 20 s. What is the speed?", "single", ["2 m/s", "4 m/s", "5 m/s", "10 m/s"], "C", "Speed = distance / time = 100 / 20 = 5 m/s."),
+            ("Which are vector quantities?", "multi", ["Displacement", "Velocity", "Force", "Mass"], "A,B,C", "Vectors have magnitude and direction; mass is scalar."),
+            ("What is the SI unit of energy?", "single", ["Newton", "Joule", "Ampere", "Volt"], "B", "Energy is measured in joules."),
+            ("Which are examples of simple machines?", "multi", ["Lever", "Pulley", "Inclined plane", "Battery"], "A,B,C", "Lever, pulley, and inclined plane are simple machines."),
+            ("Friction generally acts in which way?", "single", ["In the direction of motion", "Opposite relative motion", "Only upward", "Only downward"], "B", "Friction opposes relative motion between surfaces."),
+            ("Momentum is calculated as which product?", "single", ["Mass x velocity", "Force x distance", "Power x time", "Pressure x area"], "A", "Momentum equals mass multiplied by velocity."),
+        ],
+        ("Physics", "Electricity"): [
+            ("What is the SI unit of electric current?", "single", ["Volt", "Ampere", "Ohm", "Watt"], "B", "Electric current is measured in amperes."),
+            ("Which materials are good electrical conductors?", "multi", ["Copper", "Aluminium", "Iron", "Plastic"], "A,B,C", "Most metals conduct electricity well; plastic is an insulator."),
+            ("Which instrument measures potential difference?", "single", ["Ammeter", "Voltmeter", "Thermometer", "Barometer"], "B", "Potential difference is measured using a voltmeter."),
+            ("Which are common circuit components?", "multi", ["Switch", "Resistor", "Cell", "Ruler"], "A,B,C", "Switches, resistors, and cells are electrical circuit components."),
+            ("Ohm's law is represented by which equation?", "single", ["V = IR", "P = IV", "F = ma", "Q = mcT"], "A", "Ohm's law states V = IR."),
+            ("Which materials are electrical insulators?", "multi", ["Rubber", "Glass", "Plastic", "Copper"], "A,B,C", "Rubber, glass, and plastic resist electric current."),
+            ("If current is 2 A and resistance is 5 ohms, what is the voltage?", "single", ["2 V", "5 V", "7 V", "10 V"], "D", "Using V = IR, V = 2 x 5 = 10 V."),
+            ("Which improve electrical safety?", "multi", ["Fuse", "Earthing", "MCB", "Touching switches with wet hands"], "A,B,C", "Fuse, earthing, and MCB reduce electrical hazards."),
+            ("What is the SI unit of resistance?", "single", ["Ohm", "Volt", "Ampere", "Coulomb"], "A", "Electrical resistance is measured in ohms."),
+            ("In a series circuit, which quantity is the same through each component?", "single", ["Voltage", "Current", "Resistance", "Power"], "B", "Current is the same through components connected in series."),
+        ],
+        ("Chemistry", "Atomic Structure"): [
+            ("What is the charge of a proton?", "single", ["Positive", "Negative", "Neutral", "Variable"], "A", "A proton has a positive charge."),
+            ("Which particles are found in atoms?", "multi", ["Proton", "Neutron", "Electron", "Photon"], "A,B,C", "Atoms contain protons, neutrons, and electrons."),
+            ("Atomic number is equal to the number of which particle?", "single", ["Neutrons", "Protons", "Electrons plus neutrons", "Nucleons"], "B", "Atomic number is the number of protons."),
+            ("Which are located in the nucleus of an atom?", "multi", ["Protons", "Neutrons", "Electrons", "Nucleons"], "A,B,D", "The nucleus contains protons and neutrons, collectively called nucleons."),
+            ("In a neutral atom, electrons are equal in number to which particles?", "single", ["Neutrons", "Protons", "Nucleons", "Ions"], "B", "A neutral atom has equal protons and electrons."),
+            ("Which statements describe isotopes of an element?", "multi", ["Same atomic number", "Same number of protons", "Different number of neutrons", "Different mass number"], "A,B,C,D", "Isotopes have the same protons but different neutrons and mass numbers."),
+            ("What is the charge of an electron?", "single", ["Positive", "Negative", "Neutral", "No charge"], "B", "An electron has a negative charge."),
+            ("Which statements are true about electrons?", "multi", ["They have negative charge", "They are outside the nucleus", "They have very small mass", "They determine atomic number"], "A,B,C", "Atomic number is determined by protons, not electrons."),
+            ("Mass number is the total number of which particles?", "single", ["Protons and electrons", "Protons and neutrons", "Neutrons and electrons", "Only protons"], "B", "Mass number equals protons plus neutrons."),
+            ("Valence electrons are located where?", "single", ["In the nucleus", "In the outermost shell", "Only in metals", "Between protons"], "B", "Valence electrons are electrons in the outermost shell."),
+        ],
+        ("Chemistry", "Chemical Reactions"): [
+            ("Rusting of iron is an example of which process?", "single", ["Oxidation", "Neutralization", "Sublimation", "Filtration"], "A", "Rusting occurs when iron is oxidized."),
+            ("Which observations may indicate a chemical reaction?", "multi", ["Gas evolution", "Color change", "Temperature change", "Paper folding"], "A,B,C", "Gas, color, and temperature changes can indicate chemical change."),
+            ("Acid plus base generally produces what?", "single", ["Salt and water", "Metal and oxygen", "Sugar and salt", "Only gas"], "A", "Acid-base neutralization produces salt and water."),
+            ("Balanced chemical equations conserve which quantities?", "multi", ["Atoms", "Mass", "Charge in ionic equations", "Font size"], "A,B,C", "Balanced equations conserve atoms, mass, and charge where applicable."),
+            ("What gas is released by many reactions of acids with carbonates?", "single", ["Oxygen", "Hydrogen", "Carbon dioxide", "Nitrogen"], "C", "Acids react with carbonates to release carbon dioxide."),
+            ("Which are common types of chemical reactions?", "multi", ["Combination", "Decomposition", "Displacement", "Evaporation"], "A,B,C", "Evaporation is a physical process, not a reaction type."),
+            ("What does a catalyst do in a reaction?", "single", ["Stops all reaction", "Changes reaction rate", "Becomes the only product", "Removes atoms"], "B", "A catalyst changes reaction rate without being consumed."),
+            ("Which are signs of an exothermic reaction?", "multi", ["Heat is released", "Surroundings become warmer", "Energy goes to surroundings", "Heat is absorbed"], "A,B,C", "Exothermic reactions release energy to surroundings."),
+            ("A solution with pH below 7 is generally what?", "single", ["Acidic", "Neutral", "Basic", "Metallic"], "A", "Acids have pH values below 7."),
+            ("A precipitate is best described as what?", "single", ["A soluble gas", "An insoluble solid", "A pure liquid", "An invisible ion"], "B", "A precipitate is an insoluble solid formed in a reaction."),
+        ],
+        ("Biology", "Cell Biology"): [
+            ("Which organelle is called the powerhouse of the cell?", "single", ["Nucleus", "Mitochondria", "Ribosome", "Golgi body"], "B", "Mitochondria release energy for cellular activities."),
+            ("Which structures are commonly found in plant cells?", "multi", ["Cell wall", "Chloroplast", "Large central vacuole", "Centriole"], "A,B,C", "Plant cells commonly have a cell wall, chloroplasts, and a large vacuole."),
+            ("Which organelle controls most cell activities?", "single", ["Nucleus", "Ribosome", "Lysosome", "Cell wall"], "A", "The nucleus contains genetic material and controls cell activities."),
+            ("Which organelles are membrane-bound?", "multi", ["Nucleus", "Mitochondria", "Chloroplast", "Ribosome"], "A,B,C", "Ribosomes are not membrane-bound organelles."),
+            ("What is the basic structural and functional unit of life?", "single", ["Tissue", "Organ", "Cell", "Organ system"], "C", "The cell is the basic unit of life."),
+            ("Which are found in animal cells?", "multi", ["Nucleus", "Cell membrane", "Mitochondria", "Chloroplast"], "A,B,C", "Animal cells do not normally contain chloroplasts."),
+            ("Which organelles are the site of protein synthesis?", "single", ["Ribosomes", "Nucleus", "Vacuoles", "Centrioles"], "A", "Ribosomes synthesize proteins."),
+            ("Which features help distinguish plant cells from animal cells?", "multi", ["Cell wall", "Chloroplast", "Large central vacuole", "Plasma membrane"], "A,B,C", "Both plant and animal cells have a plasma membrane."),
+            ("Which structure forms a selectively permeable boundary around the cell?", "single", ["Cell membrane", "Nucleus", "Ribosome", "Vacuole"], "A", "The cell membrane controls movement into and out of the cell."),
+            ("Cytoplasm is best described as what?", "single", ["Jelly-like material inside the cell", "Outer hard wall only", "Genetic code only", "A blood pigment"], "A", "Cytoplasm is the jelly-like material where many cell activities occur."),
+        ],
+        ("Biology", "Human Physiology"): [
+            ("Which organs are mainly responsible for gas exchange?", "single", ["Lungs", "Kidneys", "Stomach", "Liver"], "A", "The lungs exchange oxygen and carbon dioxide."),
+            ("Which organs are part of the digestive system?", "multi", ["Stomach", "Small intestine", "Liver", "Heart"], "A,B,C", "The heart belongs to the circulatory system."),
+            ("What is the main function of the heart?", "single", ["Pump blood", "Digest food", "Filter urine", "Produce bile"], "A", "The heart pumps blood throughout the body."),
+            ("Which organs help remove wastes from the body?", "multi", ["Kidneys", "Skin", "Lungs", "Eyes"], "A,B,C", "Kidneys, skin, and lungs all help remove waste products."),
+            ("Which blood pigment carries oxygen?", "single", ["Hemoglobin", "Insulin", "Keratin", "Melanin"], "A", "Hemoglobin in red blood cells carries oxygen."),
+            ("Which are components of blood?", "multi", ["Red blood cells", "White blood cells", "Platelets", "Plasma"], "A,B,C,D", "Blood contains cells, platelets, and plasma."),
+            ("What is the basic cell of the nervous system?", "single", ["Neuron", "Nephron", "Alveolus", "Villus"], "A", "Neurons transmit nerve impulses."),
+            ("Which structures are part of the respiratory pathway?", "multi", ["Nose", "Trachea", "Bronchi", "Lungs"], "A,B,C,D", "Air passes through these structures during respiration."),
+            ("Which hormone helps regulate blood sugar?", "single", ["Insulin", "Adrenaline", "Thyroxine", "Estrogen"], "A", "Insulin helps lower and regulate blood glucose levels."),
+            ("Where are most digested nutrients absorbed?", "single", ["Small intestine", "Large intestine", "Stomach", "Esophagus"], "A", "The small intestine is the main site of nutrient absorption."),
+        ],
+        ("Logical Reasoning", "Number Series"): [
+            ("What comes next in the series: 2, 4, 6, 8, ?", "single", ["9", "10", "12", "14"], "B", "The series increases by 2 each time."),
+            ("Which are arithmetic sequences?", "multi", ["3, 6, 9", "5, 10, 15", "2, 4, 8", "11, 14, 17"], "A,B,D", "Arithmetic sequences have a constant difference."),
+            ("What comes next in the series: 1, 4, 9, 16, ?", "single", ["20", "24", "25", "36"], "C", "The terms are square numbers: 1, 4, 9, 16, 25."),
+            ("Which numbers are even?", "multi", ["12", "18", "21", "30"], "A,B,D", "Even numbers are divisible by 2."),
+            ("What comes next: 5, 10, 20, 40, ?", "single", ["45", "60", "80", "100"], "C", "Each term is doubled."),
+            ("Which numbers are multiples of 3?", "multi", ["9", "15", "22", "27"], "A,B,D", "Multiples of 3 divide exactly by 3."),
+            ("What comes next: 100, 90, 80, ?", "single", ["60", "70", "75", "85"], "B", "The series decreases by 10."),
+            ("Which numbers are prime?", "multi", ["2", "3", "9", "11"], "A,B,D", "Prime numbers have exactly two factors."),
+            ("What comes next in the series: 1, 1, 2, 3, 5, ?", "single", ["6", "7", "8", "9"], "C", "This is the Fibonacci pattern; 3 + 5 = 8."),
+            ("Which number is the odd one out: 7, 14, 21, 29?", "single", ["7", "14", "21", "29"], "D", "29 is not a multiple of 7."),
+        ],
+        ("Logical Reasoning", "Verbal Reasoning"): [
+            ("Which word is closest in meaning to happy?", "single", ["Angry", "Joyful", "Tired", "Silent"], "B", "Joyful is a synonym of happy."),
+            ("Which words mean quick?", "multi", ["Rapid", "Fast", "Slow", "Swift"], "A,B,D", "Rapid, fast, and swift all mean quick."),
+            ("Which word is the opposite of hot?", "single", ["Warm", "Cold", "Bright", "Dry"], "B", "Cold is the antonym of hot."),
+            ("Which words are nouns?", "multi", ["Teacher", "City", "Run", "Honesty"], "A,B,D", "Teacher, city, and honesty name a person, place, or idea."),
+            ("Complete the analogy: bird is to fly as fish is to ____.", "single", ["Walk", "Swim", "Climb", "Read"], "B", "Fish move through water by swimming."),
+            ("Which letters are vowels in English?", "multi", ["A", "E", "I", "B"], "A,B,C", "A, E, and I are vowels; B is a consonant."),
+            ("What is the plural of child?", "single", ["Childs", "Children", "Childes", "Childrens"], "B", "The plural of child is children."),
+            ("Which words are adjectives?", "multi", ["Blue", "Tall", "Quickly", "Heavy"], "A,B,D", "Adjectives describe nouns; quickly is an adverb."),
+            ("Complete the analogy: hand is to glove as foot is to ____.", "single", ["Hat", "Sock", "Ring", "Belt"], "B", "A sock is worn on a foot, as a glove is worn on a hand."),
+            ("Which word is the opposite of arrive?", "single", ["Come", "Depart", "Reach", "Enter"], "B", "Depart means to leave, the opposite of arrive."),
+        ],
+    }
+
+    for (subject, topic), questions in banks.items():
+        for index, item in enumerate(questions, start=1):
+            mode = "demo" if index <= 2 else "assessment"
+            text, qtype, options, correct, explanation = item
+            data.append(q(subject, topic, text, qtype, options, correct, explanation, mode))
+
+    return data
+
+
+def xml_escape(value):
+    return html.escape(str(value), quote=True)
+
+
+def col_name(index):
+    name = ""
+    while index:
+        index, rem = divmod(index - 1, 26)
+        name = chr(65 + rem) + name
+    return name
+
+
+def cell_xml(row, col, value, style=0):
+    ref = f"{col_name(col)}{row}"
+    style_attr = f' s="{style}"' if style else ""
+    if isinstance(value, int):
+        return f'<c r="{ref}"{style_attr}><v>{value}</v></c>'
+    return f'<c r="{ref}" t="inlineStr"{style_attr}><is><t>{xml_escape(value)}</t></is></c>'
+
+
+def worksheet_xml(sheet_rows, widths, freeze=True, autofilter_ref=None):
+    col_xml = ''.join(
+        f'<col min="{i}" max="{i}" width="{width}" customWidth="1"/>'
+        for i, width in enumerate(widths, start=1)
+    )
+    views = ''
+    if freeze:
+        views = (
+            '<sheetViews><sheetView workbookViewId="0">'
+            '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'
+            '</sheetView></sheetViews>'
+        )
+    rows_xml = []
+    for r_idx, values in enumerate(sheet_rows, start=1):
+        style = 1 if r_idx == 1 else 0
+        cells = ''.join(cell_xml(r_idx, c_idx, value, style) for c_idx, value in enumerate(values, start=1))
+        rows_xml.append(f'<row r="{r_idx}">{cells}</row>')
+    auto_filter = f'<autoFilter ref="{autofilter_ref}"/>' if autofilter_ref else ''
+    return (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        f'{views}<cols>{col_xml}</cols><sheetData>{"".join(rows_xml)}</sheetData>{auto_filter}'
+        '</worksheet>'
+    )
+
+
+def build_xlsx(data):
+    question_rows = [HEADERS] + [[row[h] for h in HEADERS] for row in data]
+    instructions = [
+        ["Question Bank Workbook", ""],
+        ["Purpose", "Maintain this workbook in Excel or Google Sheets, then export the Question Bank sheet as CSV for import."],
+        ["Total Questions", len(data)],
+        ["Demo Questions", sum(1 for row in data if row["Mode"] == "demo")],
+        ["Assessment Questions", sum(1 for row in data if row["Mode"] == "assessment")],
+        ["Multi-select Questions", sum(1 for row in data if row["Question Type"] == "multi")],
+        ["Subjects", "Mathematics, Physics, Chemistry, Biology, Logical Reasoning"],
+        ["Topics", "Algebra, Geometry, Mechanics, Electricity, Atomic Structure, Chemical Reactions, Cell Biology, Human Physiology, Number Series, Verbal Reasoning"],
+        ["Required CSV Columns", ", ".join(HEADERS)],
+        ["Correct Option", "Use A for single-answer questions. Use A,B,D for multi-select questions."],
+        ["Mode", "Use demo for demo questions and assessment for actual test questions."],
+        ["Import Step 1", "Upload exported CSV to storage/imports/question_bank.csv on the server."],
+        ["Import Step 2", "Run: php scripts/import_question_bank.php storage/imports/question_bank.csv --dry-run"],
+        ["Import Step 3", "If dry-run passes, run: php scripts/import_question_bank.php storage/imports/question_bank.csv"],
+    ]
+
+    files = {
+        '[Content_Types].xml': (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            '<Default Extension="xml" ContentType="application/xml"/>'
+            '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+            '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+            '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
+            '</Types>'
+        ),
+        '_rels/.rels': (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
+            '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'
+            '</Relationships>'
+        ),
+        'xl/workbook.xml': (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<sheets>'
+            '<sheet name="Question Bank" sheetId="1" r:id="rId1"/>'
+            '<sheet name="Instructions" sheetId="2" r:id="rId2"/>'
+            '</sheets></workbook>'
+        ),
+        'xl/_rels/workbook.xml.rels': (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'
+            '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+            '</Relationships>'
+        ),
+        'xl/styles.xml': (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/><color rgb="FFFFFFFF"/></font></fonts>'
+            '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF116466"/></patternFill></fill></fills>'
+            '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+            '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+            '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>'
+            '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+            '</styleSheet>'
+        ),
+        'xl/worksheets/sheet1.xml': worksheet_xml(
+            question_rows,
+            [18, 20, 54, 16, 24, 24, 24, 24, 16, 64, 14, 10],
+            freeze=True,
+            autofilter_ref=f"A1:L{len(question_rows)}",
+        ),
+        'xl/worksheets/sheet2.xml': worksheet_xml(instructions, [28, 110], freeze=False),
+        'docProps/core.xml': (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
+            'xmlns:dc="http://purl.org/dc/elements/1.1/" '
+            'xmlns:dcterms="http://purl.org/dc/terms/" '
+            'xmlns:dcmitype="http://purl.org/dc/dcmitype/" '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<dc:title>Assessment Question Bank</dc:title>'
+            '<dc:creator>Assessment Portal</dc:creator>'
+            f'<dcterms:created xsi:type="dcterms:W3CDTF">{datetime.now(timezone.utc).isoformat()}</dcterms:created>'
+            '</cp:coreProperties>'
+        ),
+        'docProps/app.xml': (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" '
+            'xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">'
+            '<Application>Assessment Portal</Application>'
+            '<TitlesOfParts><vt:vector size="2" baseType="lpstr"><vt:lpstr>Question Bank</vt:lpstr><vt:lpstr>Instructions</vt:lpstr></vt:vector></TitlesOfParts>'
+            '</Properties>'
+        ),
+    }
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    with zipfile.ZipFile(XLSX_PATH, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in files.items():
+            archive.writestr(name, content)
+
+
+def build_csv(data):
+    os.makedirs(IMPORT_DIR, exist_ok=True)
+    with open(CSV_PATH, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=HEADERS)
+        writer.writeheader()
+        writer.writerows(data)
+
+
+def main():
+    data = rows()
+    if len(data) != 100:
+        raise RuntimeError(f"Expected 100 questions, got {len(data)}")
+    if sum(1 for row in data if row["Question Type"] == "multi") != 40:
+        raise RuntimeError("Expected 40 multi-select questions")
+    if sum(1 for row in data if row["Mode"] == "demo") != 20:
+        raise RuntimeError("Expected 20 demo questions")
+
+    build_xlsx(data)
+    build_csv(data)
+    print(XLSX_PATH)
+    print(CSV_PATH)
+
+
+if __name__ == "__main__":
+    main()
