@@ -63,15 +63,15 @@ a {
 
 .login-page {
     place-items: center;
-    padding: 28px 18px;
+    padding: 24px 16px;
     background: #edf3f9;
 }
 
 .login-shell {
-    width: min(1180px, 100%);
-    min-height: 620px;
+    width: min(900px, 100%);
+    min-height: 0;
     display: grid;
-    grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
+    grid-template-columns: minmax(320px, 380px) minmax(0, 520px);
     border: 1px solid rgba(145, 158, 177, 0.28);
     border-radius: 12px;
     overflow: hidden;
@@ -82,10 +82,11 @@ a {
 .login-brand-panel {
     position: relative;
     display: grid;
-    grid-template-rows: auto auto 1fr auto auto;
-    gap: 24px;
-    min-height: 620px;
-    padding: 30px;
+    grid-template-rows: auto;
+    align-content: start;
+    gap: 22px;
+    min-height: 0;
+    padding: 28px;
     overflow: hidden;
     background:
         radial-gradient(circle at 48% 43%, rgba(45, 212, 191, 0.16), transparent 26%),
@@ -98,7 +99,7 @@ a {
     position: absolute;
     left: 40px;
     right: 40px;
-    top: 255px;
+    top: 235px;
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.55), transparent);
     opacity: 0.75;
@@ -145,7 +146,7 @@ a {
 .login-welcome-copy h1 {
     margin: 0 0 12px;
     color: white;
-    font-size: 30px;
+    font-size: 28px;
     letter-spacing: 0;
 }
 
@@ -162,7 +163,7 @@ a {
     display: grid;
     place-items: center;
     align-self: center;
-    min-height: 185px;
+    min-height: 145px;
 }
 
 .login-shield-visual::before,
@@ -185,8 +186,8 @@ a {
 .login-shield-visual svg {
     position: relative;
     z-index: 1;
-    width: 180px;
-    height: 180px;
+    width: 150px;
+    height: 150px;
     filter: drop-shadow(0 18px 35px rgba(37, 99, 235, 0.28));
 }
 
@@ -301,21 +302,21 @@ circle.shield-key {
     border: 0;
     border-radius: 0;
     box-shadow: none;
-    padding: 48px 42px;
+    padding: 34px 34px;
 }
 
 .login-card__header,
 .login-card form {
-    width: min(100%, 500px);
+    width: min(100%, 420px);
 }
 
 .login-card__header {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 }
 
 .login-card h2 {
     margin: 0 0 8px;
-    font-size: 28px;
+    font-size: 27px;
     line-height: 1.15;
 }
 
@@ -325,7 +326,11 @@ circle.shield-key {
 }
 
 .login-field {
-    gap: 8px;
+    gap: 7px;
+}
+
+.login-card form.stack {
+    gap: 14px;
 }
 
 .field-heading {
@@ -352,7 +357,7 @@ circle.shield-key {
 }
 
 .login-input-wrap input {
-    min-height: 50px;
+    min-height: 48px;
     padding-left: 44px;
     background: #fbfcfe;
 }
@@ -391,7 +396,7 @@ circle.shield-key {
 }
 
 .login-card .action-wide {
-    min-height: 50px;
+    min-height: 48px;
 }
 
 .login-divider {
@@ -420,7 +425,7 @@ circle.shield-key {
 }
 
 .login-card .action-link.secondary {
-    min-height: 48px;
+    min-height: 46px;
     padding: 10px 12px;
     background: #f8fafc;
     border-color: #d8e0ea;
