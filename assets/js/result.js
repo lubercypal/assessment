@@ -30,7 +30,7 @@ function renderResult(data) {
             <p><strong>Not Attempted</strong><br>${summary.not_attempted}</p>
             <p><strong>Marked for Review</strong><br>${summary.marked_for_review}</p>
             <p><strong>Time Used</strong><br>${Math.floor(summary.time_used_seconds / 60)} min ${summary.time_used_seconds % 60} sec</p>
-            <p><strong>Final Score</strong><br>${summary.score}</p>
+            <p><strong>Final Score</strong><br>${summary.score} / ${summary.max_score}</p>
         </div>
     `;
 
@@ -42,13 +42,27 @@ function renderResult(data) {
                 correct.has(Number(option.id)) ? 'Correct' : '',
                 selected.has(Number(option.id)) ? 'Selected' : '',
             ].filter(Boolean).join(' / ');
-            return `<li>${escapeHtml(option.option_text)} ${tags ? `<strong>(${tags})</strong>` : ''}</li>`;
+            return `
+                <li>
+                    ${option.option_text ? escapeHtml(option.option_text) : ''}
+                    ${mediaMarkup(option.option_image, option.option_text || `Option ${option.option_key || ''}`)}
+                    ${tags ? `<strong>(${tags})</strong>` : ''}
+                </li>
+            `;
         }).join('');
 
         return `
             <article class="result-item">
                 <h2>Question ${index + 1}</h2>
+                ${item.question.passage_text || item.question.passage_image ? `
+                    <section class="question-passage">
+                        <div class="question-passage__label">Reference passage</div>
+                        ${item.question.passage_text ? `<p>${escapeHtml(item.question.passage_text)}</p>` : ''}
+                        ${mediaMarkup(item.question.passage_image, 'Reference material')}
+                    </section>
+                ` : ''}
                 <p>${escapeHtml(item.question.question_text)}</p>
+                ${mediaMarkup(item.question.question_image, 'Question illustration')}
                 <ul>${options}</ul>
                 <p><strong>Explanation:</strong> ${escapeHtml(item.question.explanation || '')}</p>
             </article>
@@ -64,6 +78,17 @@ function escapeHtml(value) {
         '"': '&quot;',
         "'": '&#039;',
     })[char]);
+}
+
+function safeMediaPath(path) {
+    const value = String(path || '');
+    return /^assets\/question-media\/[A-Za-z0-9._/-]+\.webp$/i.test(value) ? value : '';
+}
+
+function mediaMarkup(path, alt) {
+    const safePath = safeMediaPath(path);
+    if (!safePath) return '';
+    return `<img class="question-media" src="${escapeHtml(safePath)}" alt="${escapeHtml(alt)}">`;
 }
 
 function enableKioskMode() {

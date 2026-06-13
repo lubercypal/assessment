@@ -16,35 +16,72 @@ XLSX_PATH = os.path.join(OUTPUT_DIR, "question_bank_100.xlsx")
 CSV_PATH = os.path.join(IMPORT_DIR, "question_bank_100.csv")
 
 HEADERS = [
+    "Question Code",
     "Subject",
     "Topic",
+    "Group Code",
+    "Passage Text",
+    "Passage Image",
     "Question Text",
+    "Question Image",
     "Question Type",
-    "Option A",
-    "Option B",
-    "Option C",
-    "Option D",
+    "Option A Text",
+    "Option A Image",
+    "Option B Text",
+    "Option B Image",
+    "Option C Text",
+    "Option C Image",
+    "Option D Text",
+    "Option D Image",
+    "Option E Text",
+    "Option E Image",
     "Correct Option",
     "Explanation",
     "Mode",
     "Active",
+    "Difficulty",
+    "Marks",
+    "Negative Marks",
+    "Scoring Rule",
+    "Shuffle Options",
+    "Ready For Import",
+    "Notes",
 ]
 
 
-def q(subject, topic, text, qtype, options, correct, explanation, mode, active=1):
+def q(question_code, subject, topic, text, qtype, options, correct, explanation, mode, active=1):
+    is_multi = qtype == "multi"
     return {
+        "Question Code": question_code,
         "Subject": subject,
         "Topic": topic,
+        "Group Code": "",
+        "Passage Text": "",
+        "Passage Image": "",
         "Question Text": text,
+        "Question Image": "",
         "Question Type": qtype,
-        "Option A": options[0],
-        "Option B": options[1],
-        "Option C": options[2],
-        "Option D": options[3],
+        "Option A Text": options[0],
+        "Option A Image": "",
+        "Option B Text": options[1],
+        "Option B Image": "",
+        "Option C Text": options[2],
+        "Option C Image": "",
+        "Option D Text": options[3],
+        "Option D Image": "",
+        "Option E Text": "",
+        "Option E Image": "",
         "Correct Option": correct,
         "Explanation": explanation,
         "Mode": mode,
         "Active": active,
+        "Difficulty": "medium",
+        "Marks": 2 if is_multi else 1,
+        "Negative Marks": 0.5 if is_multi else 0.25,
+        "Scoring Rule": "partial_credit" if is_multi else "exact_match",
+        "Shuffle Options": "Yes",
+        "Ready For Import": "Yes",
+        "Notes": "",
     }
 
 
@@ -173,11 +210,25 @@ def rows():
         ],
     }
 
+    question_number = 0
     for (subject, topic), questions in banks.items():
         for index, item in enumerate(questions, start=1):
+            question_number += 1
             mode = "demo" if index <= 2 else "assessment"
             text, qtype, options, correct, explanation = item
-            data.append(q(subject, topic, text, qtype, options, correct, explanation, mode))
+            data.append(
+                q(
+                    f"QB100-{question_number:03d}",
+                    subject,
+                    topic,
+                    text,
+                    qtype,
+                    options,
+                    correct,
+                    explanation,
+                    mode,
+                )
+            )
 
     return data
 
@@ -240,7 +291,14 @@ def build_xlsx(data):
         ["Subjects", "Mathematics, Physics, Chemistry, Biology, Logical Reasoning"],
         ["Topics", "Algebra, Geometry, Mechanics, Electricity, Atomic Structure, Chemical Reactions, Cell Biology, Human Physiology, Number Series, Verbal Reasoning"],
         ["Required CSV Columns", ", ".join(HEADERS)],
+        ["Question Code", "Required stable unique ID. A changed row with the same code creates a new version."],
+        ["Groups", "Leave Group Code blank for standalone questions. Group rows must be consecutive; row order becomes group sequence."],
+        ["Media", "Use matching image filenames and supply an image ZIP as the second importer argument."],
         ["Correct Option", "Use A for single-answer questions. Use A,B,D for multi-select questions."],
+        ["Marks", "Positive marks available for the question."],
+        ["Negative Marks", "Deduction for an incorrect answered response."],
+        ["Scoring Rule", "Use exact_match or partial_credit."],
+        ["Shuffle Options", "Use Yes to shuffle option order once per attempt, or No to preserve workbook order."],
         ["Mode", "Use demo for demo questions and assessment for actual test questions."],
         ["Import Step 1", "Upload exported CSV to storage/imports/question_bank.csv on the server."],
         ["Import Step 2", "Run: php scripts/import_question_bank.php storage/imports/question_bank.csv --dry-run"],
@@ -299,9 +357,9 @@ def build_xlsx(data):
         ),
         'xl/worksheets/sheet1.xml': worksheet_xml(
             question_rows,
-            [18, 20, 54, 16, 24, 24, 24, 24, 16, 64, 14, 10],
+            [18, 20, 22, 24, 58, 38, 66, 32, 16, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 16, 58, 14, 10, 14, 10, 16, 18, 16, 16, 58],
             freeze=True,
-            autofilter_ref=f"A1:L{len(question_rows)}",
+            autofilter_ref=f"A1:AD{len(question_rows)}",
         ),
         'xl/worksheets/sheet2.xml': worksheet_xml(instructions, [28, 110], freeze=False),
         'docProps/core.xml': (
@@ -335,7 +393,7 @@ def build_xlsx(data):
 def build_csv(data):
     os.makedirs(IMPORT_DIR, exist_ok=True)
     with open(CSV_PATH, "w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=HEADERS)
+        writer = csv.DictWriter(handle, fieldnames=HEADERS, lineterminator="\n")
         writer.writeheader()
         writer.writerows(data)
 

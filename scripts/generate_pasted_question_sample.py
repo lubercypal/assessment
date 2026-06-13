@@ -6,7 +6,9 @@ import csv
 import html
 import os
 import re
+import struct
 import zipfile
+import zlib
 from datetime import datetime, timezone
 
 
@@ -15,13 +17,14 @@ OUTPUT_DIR = os.path.join(ROOT, "outputs")
 IMPORT_DIR = os.path.join(ROOT, "storage", "imports")
 XLSX_PATH = os.path.join(OUTPUT_DIR, "question_bank_sample_pasted_questions.xlsx")
 CSV_PATH = os.path.join(IMPORT_DIR, "question_bank_sample_pasted_questions.csv")
+DATABASE_SAMPLE_PATH = os.path.join(ROOT, "database", "question_bank_sample.csv")
+IMAGE_ZIP_PATH = os.path.join(OUTPUT_DIR, "question_bank_sample_images.zip")
 
 HEADERS = [
     "Question Code",
     "Subject",
     "Topic",
     "Group Code",
-    "Group Order",
     "Passage Text",
     "Passage Image",
     "Question Text",
@@ -44,6 +47,8 @@ HEADERS = [
     "Difficulty",
     "Marks",
     "Negative Marks",
+    "Scoring Rule",
+    "Shuffle Options",
     "Ready For Import",
     "Notes",
 ]
@@ -54,7 +59,6 @@ def row(
     subject,
     topic,
     group_code,
-    group_order,
     passage_text,
     passage_image,
     question_text,
@@ -67,6 +71,8 @@ def row(
     difficulty="medium",
     marks=1,
     negative_marks=0,
+    scoring_rule="exact_match",
+    shuffle_options="No",
     ready="Yes",
     notes="",
     question_image="",
@@ -76,7 +82,6 @@ def row(
         "Subject": subject,
         "Topic": topic,
         "Group Code": group_code,
-        "Group Order": group_order,
         "Passage Text": passage_text,
         "Passage Image": passage_image,
         "Question Text": question_text,
@@ -89,6 +94,8 @@ def row(
         "Difficulty": difficulty,
         "Marks": marks,
         "Negative Marks": negative_marks,
+        "Scoring Rule": scoring_rule,
+        "Shuffle Options": shuffle_options,
         "Ready For Import": ready,
         "Notes": notes,
     }
@@ -101,17 +108,24 @@ def row(
 
 
 def rows():
+    solar_passage = (
+        "A school installed rooftop solar panels to reduce its electricity use. "
+        "In April the panels generated 1,200 units of electricity, while the "
+        "school consumed 1,500 units. In May generation increased by 25 percent "
+        "from April, and consumption remained unchanged. Any generation beyond "
+        "consumption is exported to the electricity grid."
+    )
     railway_passage = (
         "The table/image below shows the estimated cost, in Rs. lakh, of a "
         "project for laying a railway line between two places. Keep the same "
         "passage/table reference repeated for every sub-question in this set."
     )
-    railway_image = "assets/question-media/railway-cost-estimate-table.png"
+    railway_image = "railway-cost-estimate-table.png"
     railway_note = (
-        "Grouped DI question. Keep same Group Code for all rows and use Group "
-        "Order 1, 2, 3... so the group appears together in sequence. Correct "
-        "option is marked TBD because the source table values were not included "
-        "in the pasted text."
+        "Grouped DI question. Keep the same Group Code and keep all group rows "
+        "consecutive. Their Excel row order becomes the protected sequence. "
+        "Correct option is marked TBD because the source table values were not "
+        "included in the pasted text."
     )
 
     data = [
@@ -119,7 +133,6 @@ def rows():
             "LR-OBJ-001",
             "Logical Reasoning",
             "Truth and Arrangement",
-            "",
             "",
             "",
             "",
@@ -150,7 +163,6 @@ def rows():
             "",
             "",
             "",
-            "",
             (
                 "Albert, David, Jerome and Tommy were plucking mangoes. Their "
                 "earnings were directly related to the number of mangoes plucked. "
@@ -176,11 +188,118 @@ def rows():
             difficulty="hard",
         ),
         row(
+            "LR-MULTI-057",
+            "Logical Reasoning",
+            "Number Classification",
+            "",
+            "",
+            "",
+            "Which of the following numbers are prime numbers? Select all correct options.",
+            "multi",
+            [("2", ""), ("3", ""), ("9", ""), ("11", "")],
+            "A,B,D",
+            "The numbers 2, 3, and 11 have exactly two positive factors. The number 9 is composite.",
+            marks=3,
+            negative_marks=1,
+            scoring_rule="partial_credit",
+            shuffle_options="Yes",
+            mode="demo",
+            difficulty="medium",
+            notes=(
+                "Partial-credit example: A,B,D earns 3 marks; selecting only A,B "
+                "earns 2 marks; selecting any incorrect option such as C earns -1 mark."
+            ),
+        ),
+        row(
+            "IMG-SAMPLE-001",
+            "Logical Reasoning",
+            "Visual Classification",
+            "",
+            "",
+            "",
+            "The reference image shows the target color. Which option matches it?",
+            "single",
+            [
+                ("Blue", "blue-option.png"),
+                ("Red", "red-option.png"),
+                ("Green", "green-option.png"),
+                ("Yellow", "yellow-option.png"),
+            ],
+            "A",
+            "The reference image and option A both show blue.",
+            mode="demo",
+            difficulty="easy",
+            shuffle_options="Yes",
+            question_image="sample-color-guide.png",
+            notes=(
+                "Ready image example. Upload question_bank_sample_images.zip with "
+                "the CSV; filenames may be inside any safe folders in the ZIP."
+            ),
+        ),
+        row(
+            "PASS-SOLAR-001-01",
+            "Logical Reasoning",
+            "Passage Analysis",
+            "PASS-SOLAR-001",
+            solar_passage,
+            "",
+            "How many electricity units did the school obtain from the grid in April?",
+            "single",
+            [("200 units", ""), ("300 units", ""), ("500 units", ""), ("1,200 units", "")],
+            "B",
+            "April consumption exceeded solar generation by 1,500 - 1,200 = 300 units.",
+            mode="assessment",
+            difficulty="easy",
+            shuffle_options="Yes",
+            notes="Ready paragraph group. Keep all PASS-SOLAR-001 rows consecutive.",
+        ),
+        row(
+            "PASS-SOLAR-001-02",
+            "Logical Reasoning",
+            "Passage Analysis",
+            "PASS-SOLAR-001",
+            solar_passage,
+            "",
+            "How many electricity units did the panels generate in May?",
+            "single",
+            [("1,200 units", ""), ("1,350 units", ""), ("1,500 units", ""), ("1,800 units", "")],
+            "C",
+            "A 25 percent increase on 1,200 units is 300 units, giving 1,500 units.",
+            mode="assessment",
+            difficulty="easy",
+            shuffle_options="Yes",
+            notes="Ready paragraph group. Excel row order becomes protected group sequence.",
+        ),
+        row(
+            "PASS-SOLAR-001-03",
+            "Logical Reasoning",
+            "Passage Analysis",
+            "PASS-SOLAR-001",
+            solar_passage,
+            "",
+            "Which statements are correct for May? Select all correct options.",
+            "multi",
+            [
+                ("Solar generation equalled consumption.", ""),
+                ("The school imported 300 units from the grid.", ""),
+                ("No electricity was exported to the grid.", ""),
+                ("Generation was 25 percent higher than in April.", ""),
+            ],
+            "A,C,D",
+            "May generation was 1,500 units, equal to consumption, so there was no import or export.",
+            mode="assessment",
+            difficulty="medium",
+            marks=3,
+            negative_marks=1,
+            scoring_rule="partial_credit",
+            shuffle_options="Yes",
+            notes="Ready multi-select member of the protected paragraph group.",
+        ),
+        row(
             "DI-RAIL-061",
             "Logical Reasoning",
             "Data Interpretation",
             "DI-RAILWAY-COST-001",
-            1,
             railway_passage,
             railway_image,
             (
@@ -200,7 +319,6 @@ def rows():
             "Logical Reasoning",
             "Data Interpretation",
             "DI-RAILWAY-COST-001",
-            2,
             railway_passage,
             railway_image,
             (
@@ -221,7 +339,6 @@ def rows():
             "Logical Reasoning",
             "Data Interpretation",
             "DI-RAILWAY-COST-001",
-            3,
             railway_passage,
             railway_image,
             (
@@ -241,7 +358,6 @@ def rows():
             "Logical Reasoning",
             "Data Interpretation",
             "DI-RAILWAY-COST-001",
-            4,
             railway_passage,
             railway_image,
             (
@@ -266,7 +382,6 @@ def rows():
             "Logical Reasoning",
             "Data Interpretation",
             "DI-RAILWAY-COST-001",
-            5,
             railway_passage,
             railway_image,
             (
@@ -288,7 +403,6 @@ def rows():
             "Logical Reasoning",
             "Data Interpretation",
             "DI-RAILWAY-COST-001",
-            6,
             railway_passage,
             railway_image,
             (
@@ -368,14 +482,21 @@ def build_xlsx(data):
         ["Field", "How to use"],
         ["Question Code", "Unique stable ID such as LR-OBJ-001 or DI-RAIL-061."],
         ["Group Code", "Blank for standalone questions. Same value for all questions in a paragraph/table series."],
-        ["Group Order", "Blank for standalone questions. Use 1, 2, 3... inside a grouped set."],
+        ["Group Sequence", "There is no order column. Keep group rows consecutive; Excel row order becomes their protected sequence."],
         ["Passage Text", "Repeat the paragraph/table instruction for every question in the group."],
-        ["Passage Image", "Use when the question depends on a table/diagram image. Example: assets/question-media/railway-cost-estimate-table.png"],
+        ["Passage Image", "Enter the matching ZIP filename, such as railway-cost-estimate-table.png."],
         ["Question Image", "Optional image below the question text."],
         ["Option Text/Image", "If text exists, show text. If image exists, show image. If both exist, show text as title and image below."],
         ["Correct Option", "Use A for single answer, or A,C for multi-select. TBD means not ready for import."],
+        ["Marks", "Positive marks awarded when the answer satisfies the scoring rule."],
+        ["Negative Marks", "Deduction applied to an answered response that includes a wrong option or fails exact_match."],
+        ["Scoring Rule", "Use exact_match or partial_credit. Blank defaults to exact_match."],
+        ["exact_match", "Full marks only when the selected set exactly matches Correct Option; otherwise deduct Negative Marks."],
+        ["partial_credit", "A correct subset with no wrong option earns proportional marks; any wrong selected option deducts Negative Marks."],
+        ["Shuffle Options", "Use Yes to randomize option order once per attempt, or No to keep A, B, C order."],
         ["Ready For Import", "Use Yes only after correct option, media path, and explanation are final."],
-        ["Randomization Rule", "Randomize standalone questions and group placement. Once a group starts, display its rows by Group Order."],
+        ["Randomization Rule", "Standalone questions and complete groups may shuffle. Questions inside a group stay in consecutive Excel row order."],
+        ["Image ZIP", "ZIP image names must match workbook image cells. The importer validates, converts to WebP, and creates a unique server batch folder."],
     ]
 
     files = {
@@ -430,11 +551,11 @@ def build_xlsx(data):
         ),
         "xl/worksheets/sheet1.xml": worksheet_xml(
             question_rows,
-            [18, 20, 22, 24, 12, 58, 38, 66, 32, 16, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 16, 58, 14, 10, 14, 10, 16, 16, 58],
+            [18, 20, 22, 24, 58, 38, 66, 32, 16, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 16, 58, 14, 10, 14, 10, 16, 18, 16, 16, 58],
             freeze=True,
-            autofilter_ref=f"A1:AC{len(question_rows)}",
+            autofilter_ref=f"A1:AD{len(question_rows)}",
         ),
-        "xl/worksheets/sheet2.xml": worksheet_xml(instructions, [24, 120], freeze=True, autofilter_ref="A1:B11"),
+        "xl/worksheets/sheet2.xml": worksheet_xml(instructions, [24, 120], freeze=True, autofilter_ref=f"A1:B{len(instructions)}"),
         "docProps/core.xml": (
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
@@ -465,18 +586,55 @@ def build_xlsx(data):
 
 def build_csv(data):
     os.makedirs(IMPORT_DIR, exist_ok=True)
-    with open(CSV_PATH, "w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=HEADERS)
-        writer.writeheader()
-        writer.writerows(data)
+    for path in (CSV_PATH, DATABASE_SAMPLE_PATH):
+        with open(path, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=HEADERS, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(data)
+
+
+def png_bytes(width, height, color):
+    red, green, blue = color
+    raw = b"".join(b"\x00" + bytes((red, green, blue)) * width for _ in range(height))
+
+    def chunk(kind, payload):
+        return (
+            struct.pack(">I", len(payload))
+            + kind
+            + payload
+            + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF)
+        )
+
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw, 9))
+        + chunk(b"IEND", b"")
+    )
+
+
+def build_image_zip():
+    images = {
+        "reference/sample-color-guide.png": (39, 111, 191),
+        "options/blue-option.png": (39, 111, 191),
+        "options/red-option.png": (204, 55, 55),
+        "options/green-option.png": (34, 139, 94),
+        "options/yellow-option.png": (230, 177, 36),
+    }
+    with zipfile.ZipFile(IMAGE_ZIP_PATH, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, color in images.items():
+            archive.writestr(name, png_bytes(480, 220, color))
 
 
 def main():
     data = rows()
     build_xlsx(data)
     build_csv(data)
+    build_image_zip()
     print(XLSX_PATH)
     print(CSV_PATH)
+    print(DATABASE_SAMPLE_PATH)
+    print(IMAGE_ZIP_PATH)
     print(f"rows={len(data)}")
 
 

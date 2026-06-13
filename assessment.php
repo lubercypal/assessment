@@ -35,7 +35,13 @@ App\Services\AuthService::requirePage();
                     <span id="questionNumber">Question</span>
                     <span>Answers save during navigation</span>
                 </div>
+                <section id="passageBlock" class="question-passage hidden">
+                    <div class="question-passage__label">Reference passage</div>
+                    <div id="passageText" class="question-passage__text"></div>
+                    <img id="passageImage" class="question-media hidden" alt="Reference material">
+                </section>
                 <h1 id="questionText">Loading...</h1>
+                <img id="questionImage" class="question-media hidden" alt="Question illustration">
                 <div id="options" class="options"></div>
                 <div id="feedback" class="feedback hidden"></div>
                 <div class="actions">

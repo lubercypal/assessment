@@ -86,28 +86,91 @@ CREATE TABLE topics (
     UNIQUE KEY uq_topics_category_name (category_id, name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE question_import_batches (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    batch_code VARCHAR(40) NOT NULL UNIQUE,
+    source_filename VARCHAR(255) NOT NULL,
+    image_zip_filename VARCHAR(255) NULL,
+    status ENUM('processing', 'completed', 'failed') NOT NULL DEFAULT 'processing',
+    rows_total INT NOT NULL DEFAULT 0,
+    rows_imported INT NOT NULL DEFAULT 0,
+    rows_skipped INT NOT NULL DEFAULT 0,
+    questions_created INT NOT NULL DEFAULT 0,
+    questions_versioned INT NOT NULL DEFAULT 0,
+    questions_unchanged INT NOT NULL DEFAULT 0,
+    media_imported INT NOT NULL DEFAULT 0,
+    warnings JSON NULL,
+    errors JSON NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME NULL,
+    INDEX idx_question_import_batches_status (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE question_media (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    import_batch_id BIGINT UNSIGNED NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    stored_path VARCHAR(500) NOT NULL,
+    mime_type VARCHAR(80) NOT NULL,
+    file_size BIGINT UNSIGNED NOT NULL,
+    width INT UNSIGNED NOT NULL,
+    height INT UNSIGNED NOT NULL,
+    sha256 CHAR(64) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_question_media_batch FOREIGN KEY (import_batch_id)
+        REFERENCES question_import_batches(id) ON DELETE RESTRICT,
+    UNIQUE KEY uq_question_media_stored_path (stored_path),
+    INDEX idx_question_media_batch (import_batch_id),
+    INDEX idx_question_media_hash (sha256)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE questions (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    question_code VARCHAR(100) NOT NULL,
+    version_number INT UNSIGNED NOT NULL DEFAULT 1,
+    is_current TINYINT(1) NOT NULL DEFAULT 1,
     category_id BIGINT UNSIGNED NOT NULL,
     topic_id BIGINT UNSIGNED NULL,
+    group_code VARCHAR(100) NULL,
+    group_sequence INT UNSIGNED NULL,
+    passage_text LONGTEXT NULL,
+    passage_media_id BIGINT UNSIGNED NULL,
     question_text TEXT NOT NULL,
+    question_media_id BIGINT UNSIGNED NULL,
     question_type ENUM('single', 'multi') NOT NULL DEFAULT 'single',
+    marks DECIMAL(8,2) NOT NULL DEFAULT 1.00,
+    negative_marks DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+    scoring_rule ENUM('exact_match', 'partial_credit') NOT NULL DEFAULT 'exact_match',
+    difficulty ENUM('easy', 'medium', 'hard') NOT NULL DEFAULT 'medium',
+    shuffle_options TINYINT(1) NOT NULL DEFAULT 0,
+    content_hash CHAR(64) NULL,
+    import_batch_id BIGINT UNSIGNED NULL,
+    source_row_number INT UNSIGNED NULL,
     explanation TEXT NULL,
     is_demo TINYINT(1) NOT NULL DEFAULT 0,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_questions_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
     CONSTRAINT fk_questions_topic FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE SET NULL,
-    INDEX idx_questions_selection (category_id, topic_id, is_demo, is_active)
+    CONSTRAINT fk_questions_passage_media FOREIGN KEY (passage_media_id) REFERENCES question_media(id) ON DELETE SET NULL,
+    CONSTRAINT fk_questions_question_media FOREIGN KEY (question_media_id) REFERENCES question_media(id) ON DELETE SET NULL,
+    CONSTRAINT fk_questions_import_batch FOREIGN KEY (import_batch_id) REFERENCES question_import_batches(id) ON DELETE SET NULL,
+    UNIQUE KEY uq_questions_code_version (question_code, version_number),
+    INDEX idx_questions_current_selection (category_id, topic_id, is_demo, is_active, is_current),
+    INDEX idx_questions_group_current (group_code, is_current, group_sequence)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE question_options (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     question_id BIGINT UNSIGNED NOT NULL,
-    option_text TEXT NOT NULL,
+    option_key CHAR(1) NOT NULL,
+    option_text TEXT NULL,
+    option_media_id BIGINT UNSIGNED NULL,
     is_correct TINYINT(1) NOT NULL DEFAULT 0,
     sort_order INT NOT NULL DEFAULT 0,
     CONSTRAINT fk_question_options_question FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+    CONSTRAINT fk_question_options_media FOREIGN KEY (option_media_id) REFERENCES question_media(id) ON DELETE SET NULL,
+    UNIQUE KEY uq_question_options_key (question_id, option_key),
     INDEX idx_question_options_question (question_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -118,12 +181,13 @@ CREATE TABLE assessment_attempts (
     topic_id BIGINT UNSIGNED NULL,
     mode ENUM('demo', 'assessment') NOT NULL DEFAULT 'assessment',
     question_order JSON NOT NULL,
+    option_orders JSON NULL,
     total_questions INT NOT NULL,
     duration_seconds INT NOT NULL,
     started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     submitted_at DATETIME NULL,
     expires_at DATETIME NOT NULL,
-    score INT NULL,
+    score DECIMAL(10,2) NULL,
     CONSTRAINT fk_attempts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_attempts_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
     CONSTRAINT fk_attempts_topic FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE SET NULL,

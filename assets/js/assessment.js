@@ -257,8 +257,23 @@
             function renderQuestion(data) {
                 const q = data.question;
                 query('#modeLabel').textContent = state.mode === 'demo' ? 'Demo Mode' : 'Assessment Mode';
-                query('#questionNumber').textContent = `Question ${currentIndex + 1} of ${totalQuestions}`;
+                query('#questionNumber').textContent = data.group
+                    ? `Question ${currentIndex + 1} of ${totalQuestions} · Passage ${data.group.position} of ${data.group.total}`
+                    : `Question ${currentIndex + 1} of ${totalQuestions}`;
+
+                const passageBlock = query('#passageBlock');
+                const passageText = query('#passageText');
+                const hasPassage = Boolean(q.passage_text || q.passage_image);
+                passageBlock?.classList.toggle('hidden', !hasPassage);
+                if (passageText) {
+                    passageText.innerHTML = '';
+                    if (q.passage_text) {
+                        renderProtectedText(passageText, q.passage_text);
+                    }
+                }
+                setQuestionMedia(query('#passageImage'), q.passage_image, 'Reference material');
                 renderProtectedText(query('#questionText'), q.question_text);
+                setQuestionMedia(query('#questionImage'), q.question_image, 'Question illustration');
                 const feedback = query('#feedback');
                 feedback.classList.add('hidden');
                 feedback.innerHTML = '';
@@ -280,8 +295,20 @@
                     input.value = String(option.id);
                     input.checked = selected.has(Number(option.id));
                     label.append(input, copy);
+                    if (!option.option_text) {
+                        copy.remove();
+                    }
+                    if (option.option_image) {
+                        const image = document.createElement('img');
+                        image.className = 'option-media';
+                        image.alt = option.option_text || `Option ${option.option_key || ''}`.trim();
+                        image.src = safeMediaPath(option.option_image);
+                        label.appendChild(image);
+                    }
                     optionsNode.appendChild(label);
-                    renderProtectedText(copy, option.option_text);
+                    if (option.option_text) {
+                        renderProtectedText(copy, option.option_text);
+                    }
                 });
 
                 query('#previous').disabled = currentIndex === 0;
@@ -342,11 +369,13 @@
 
             function renderFeedback(feedback) {
                 const node = query('#feedback');
-                const selected = feedback.selected_answers.map((item) => item.option_text).join(', ') || 'No answer selected';
-                const correct = feedback.correct_answers.map((item) => item.option_text).join(', ');
+                const optionLabel = (item) => item.option_text || `Image option ${item.option_key || ''}`.trim();
+                const selected = feedback.selected_answers.map(optionLabel).join(', ') || 'No answer selected';
+                const correct = feedback.correct_answers.map(optionLabel).join(', ');
                 node.classList.remove('hidden');
                 node.innerHTML = `
                     <strong>${feedback.is_correct ? 'Correct' : 'Needs review'}</strong>
+                    <p><strong>Marks:</strong> ${feedback.awarded_marks} / ${feedback.marks}</p>
                     <p>Selected answer:</p>
                     <div class="feedback-answer-copy" data-feedback-copy="selected"></div>
                     <p>Correct answer:</p>
@@ -384,13 +413,27 @@
                             correct.has(Number(option.id)) ? 'Correct' : '',
                             selected.has(Number(option.id)) ? 'Selected' : '',
                         ].filter(Boolean).join(' / ');
-                        return `<li><span class="result-option-copy" data-response-index="${index}" data-option-index="${optionIndex}"></span>${tags ? `<strong>(${tags})</strong>` : ''}</li>`;
+                        return `
+                            <li>
+                                ${option.option_text ? `<span class="result-option-copy" data-response-index="${index}" data-option-index="${optionIndex}"></span>` : ''}
+                                ${mediaMarkup(option.option_image, option.option_text || `Option ${option.option_key || ''}`)}
+                                ${tags ? `<strong>(${tags})</strong>` : ''}
+                            </li>
+                        `;
                     }).join('');
 
                     return `
                         <article class="result-item">
                             <h2>Question ${index + 1}</h2>
+                            ${item.question.passage_text || item.question.passage_image ? `
+                                <section class="question-passage">
+                                    <div class="question-passage__label">Reference passage</div>
+                                    ${item.question.passage_text ? `<div class="result-passage-copy" data-response-index="${index}"></div>` : ''}
+                                    ${mediaMarkup(item.question.passage_image, 'Reference material')}
+                                </section>
+                            ` : ''}
                             <div class="result-question-copy" data-response-index="${index}"></div>
+                            ${mediaMarkup(item.question.question_image, 'Question illustration')}
                             <ul>${options}</ul>
                             <p><strong>Explanation:</strong> ${escapeHtml(item.question.explanation || '')}</p>
                         </article>
@@ -414,7 +457,7 @@
                                 <p><strong>Not Attempted</strong><br>${summary.not_attempted}</p>
                                 <p><strong>Marked for Review</strong><br>${summary.marked_for_review}</p>
                                 <p><strong>Time Used</strong><br>${Math.floor(summary.time_used_seconds / 60)} min ${summary.time_used_seconds % 60} sec</p>
-                                <p><strong>Final Score</strong><br>${summary.score}</p>
+                                <p><strong>Final Score</strong><br>${summary.score} / ${summary.max_score}</p>
                             </div>
                             <div>${responseCards}</div>
                         </section>
@@ -422,9 +465,17 @@
                 `;
 
                 data.responses.forEach((item, index) => {
+                    if (item.question.passage_text) {
+                        renderProtectedText(
+                            root.querySelector(`.result-passage-copy[data-response-index="${index}"]`),
+                            item.question.passage_text
+                        );
+                    }
                     renderProtectedText(root.querySelector(`.result-question-copy[data-response-index="${index}"]`), item.question.question_text);
                     item.question.options.forEach((option, optionIndex) => {
-                        renderProtectedText(root.querySelector(`.result-option-copy[data-response-index="${index}"][data-option-index="${optionIndex}"]`), option.option_text);
+                        if (option.option_text) {
+                            renderProtectedText(root.querySelector(`.result-option-copy[data-response-index="${index}"][data-option-index="${optionIndex}"]`), option.option_text);
+                        }
                     });
                 });
             }
@@ -458,6 +509,29 @@
                     '"': '&quot;',
                     "'": '&#039;',
                 })[char]);
+            }
+
+            function safeMediaPath(path) {
+                const value = String(path || '');
+                return /^assets\/question-media\/[A-Za-z0-9._/-]+\.webp$/i.test(value) ? value : '';
+            }
+
+            function setQuestionMedia(node, path, alt) {
+                if (!node) return;
+                const safePath = safeMediaPath(path);
+                node.classList.toggle('hidden', !safePath);
+                if (safePath) {
+                    node.src = safePath;
+                    node.alt = alt;
+                } else {
+                    node.removeAttribute('src');
+                }
+            }
+
+            function mediaMarkup(path, alt) {
+                const safePath = safeMediaPath(path);
+                if (!safePath) return '';
+                return `<img class="question-media" src="${escapeHtml(safePath)}" alt="${escapeHtml(alt)}">`;
             }
 
             ensureMounted();
