@@ -296,7 +296,10 @@ final class AuthController
         $sent = Mailer::send($email, 'Reset your assessment password', "Use this secure link within 30 minutes:\n\n{$link}");
         if (!$sent) {
             db()->prepare('DELETE FROM password_resets WHERE id = ?')->execute([$resetId]);
-            Response::error('We could not send the reset email right now. Please try again later.', 500);
+            $mailResult = Mailer::lastResult();
+            Response::error('We could not send the reset email right now. Please try again later.', 502, [
+                'support_reference' => $mailResult['request_id'] ?? null,
+            ]);
         }
 
         SecurityLog::record('password_reset_requested', (int) $user['id'], ['email' => $email]);
@@ -424,10 +427,21 @@ final class AuthController
         }
 
         $otp = (string) random_int(100000, 999999);
+        $otpId = $this->storeOtp($userId, $otp);
         if (!Mailer::send($email, 'Your assessment verification OTP', "Your OTP is {$otp}. It expires in 10 minutes.")) {
-            throw new \RuntimeException('OTP email could not be sent. Please check the mail log.');
+            db()->prepare('DELETE FROM email_otps WHERE id = ?')->execute([$otpId]);
+            $mailResult = Mailer::lastResult();
+            $reference = trim((string) ($mailResult['request_id'] ?? ''));
+            throw new \RuntimeException(
+                'OTP email could not be sent.'
+                . ($reference !== '' ? " Support reference: {$reference}." : '')
+            );
         }
-        $this->storeOtp($userId, $otp);
+        db()->prepare(
+            'UPDATE email_otps
+             SET consumed_at = NOW()
+             WHERE user_id = ? AND id <> ? AND consumed_at IS NULL'
+        )->execute([$userId, $otpId]);
 
         return [
             'cooldown' => false,
@@ -461,10 +475,11 @@ final class AuthController
         return ['blocked' => false, 'retry_after_seconds' => 0];
     }
 
-    private function storeOtp(int $userId, string $otp): void
+    private function storeOtp(int $userId, string $otp): int
     {
         $stmt = db()->prepare('INSERT INTO email_otps (user_id, otp_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))');
         $stmt->execute([$userId, password_hash($otp, PASSWORD_DEFAULT)]);
+        return (int) db()->lastInsertId();
     }
 
     private function normalizeIndianMobile(string $mobile): array

@@ -25,6 +25,10 @@ $result = [
     'driver' => null,
     'configured_driver' => strtolower(trim((string) app_config('mail_driver', 'mail'))),
     'to' => null,
+    'request_id' => null,
+    'stage' => null,
+    'diagnostics' => [],
+    'warnings' => [],
 ];
 
 if (!$enabled || $expectedKey === '' || !hash_equals($expectedKey, $providedKey)) {
@@ -33,18 +37,26 @@ if (!$enabled || $expectedKey === '' || !hash_equals($expectedKey, $providedKey)
 } else {
     $driver = strtolower(trim((string) ($_GET['driver'] ?? 'config')));
     $allowedDrivers = ['config', 'graph', 'smtp'];
+    $allowDriverOverride = (bool) app_config('test_mail_allow_driver_override', false);
     $to = trim((string) ($_GET['to'] ?? app_config('test_mail_default_to', '')));
     $effectiveDriver = $driver === 'config'
         ? strtolower(trim((string) app_config('mail_driver', 'mail')))
         : $driver;
+    $diagnostics = Mailer::configurationDiagnostics($effectiveDriver);
 
     $result['driver'] = $effectiveDriver;
     $result['to'] = $to;
+    $result['diagnostics'] = $diagnostics['checks'];
+    $result['warnings'] = $diagnostics['warnings'];
 
     if (!in_array($driver, $allowedDrivers, true)) {
         $statusCode = 400;
         $result['status'] = 'invalid-driver';
         $result['message'] = 'Invalid driver. Use driver=config, driver=graph, or driver=smtp.';
+    } elseif ($driver !== 'config' && !$allowDriverOverride) {
+        $statusCode = 400;
+        $result['status'] = 'driver-override-disabled';
+        $result['message'] = 'Driver override is disabled. Test the configured mail_driver using driver=config.';
     } elseif (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
         $statusCode = 400;
         $result['status'] = 'invalid-recipient';
@@ -63,9 +75,17 @@ if (!$enabled || $expectedKey === '' || !hash_equals($expectedKey, $providedKey)
             : Mailer::sendUsingDriver($driver, $to, $subject, $message);
         $result['ok'] = $sent;
         $result['status'] = $sent ? 'accepted' : 'failed';
-        $result['message'] = $sent
-            ? 'Mail request was accepted by the configured mail transport.'
-            : 'Mail request failed. Check storage/logs/mail-error.log for details.';
+        $mailResult = Mailer::lastResult();
+        $result['request_id'] = $mailResult['request_id'] ?? null;
+        $result['stage'] = $mailResult['stage'] ?? null;
+        $result['message'] = (string) ($mailResult['message'] ?? (
+            $sent
+                ? 'Mail request was accepted by the configured mail transport.'
+                : 'Mail request failed. Check storage/logs/mail-error.log for details.'
+        ));
+        if (!$sent) {
+            $statusCode = 502;
+        }
     }
 }
 
@@ -99,7 +119,25 @@ if ($format === 'json') {
             <p><strong>Driver:</strong> <?= page_text((string) ($result['driver'] ?? '-')) ?></p>
             <p><strong>Configured Driver:</strong> <?= page_text((string) ($result['configured_driver'] ?? '-')) ?></p>
             <p><strong>Recipient:</strong> <?= page_text((string) ($result['to'] ?? '-')) ?></p>
+            <p><strong>Stage:</strong> <?= page_text((string) ($result['stage'] ?? '-')) ?></p>
+            <p><strong>Request ID:</strong> <?= page_text((string) ($result['request_id'] ?? '-')) ?></p>
         </div>
+        <?php if (!empty($result['warnings'])): ?>
+            <div class="message form-alert error" role="note">
+                <?= page_text(implode(' ', $result['warnings'])) ?>
+            </div>
+        <?php endif; ?>
+        <?php if (!empty($result['diagnostics'])): ?>
+            <div class="stack">
+                <h2>Configuration checks</h2>
+                <?php foreach ($result['diagnostics'] as $check => $passed): ?>
+                    <p>
+                        <strong><?= page_text(str_replace('_', ' ', ucfirst($check))) ?>:</strong>
+                        <?= $passed ? 'Passed' : 'Failed' ?>
+                    </p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
         <p class="muted">
             <?= (($result['driver'] ?? '') === 'graph')
                 ? 'Graph returning accepted only means Microsoft accepted the send request. If a later bounce occurs, check the sender mailbox and Microsoft 365 delivery reports.'

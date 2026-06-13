@@ -160,6 +160,7 @@ function renderErrorSummary(messageNode, error) {
     if (!messageNode || !error) return;
 
     const details = error.details || {};
+    const supportReference = String(details.support_reference || '').trim();
     if (error.status === 429 && Number(details.retry_after_seconds || 0) > 0) {
         const seconds = Number(details.retry_after_seconds || 0);
         const tick = (node, remaining) => {
@@ -227,7 +228,7 @@ function renderErrorSummary(messageNode, error) {
         return;
     }
 
-    messageNode.textContent = error.message || 'Request failed.';
+    messageNode.textContent = `${error.message || 'Request failed.'}${supportReference ? ` Support reference: ${supportReference}.` : ''}`;
     messageNode.className = 'message error form-alert';
     messageNode.setAttribute('role', 'alert');
 }

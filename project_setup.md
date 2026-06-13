@@ -198,6 +198,11 @@ In progress / polish:
 - Added import dry-run, audit batches, unchanged detection, and transaction rollback.
 - Added option shuffling that is generated once and retained throughout an attempt.
 - Added final sample XLSX, import CSV, and matching image ZIP.
+- Made Microsoft Graph the recommended production mail transport.
+- Added mail configuration health checks and request-correlated transport logs.
+- Added frontend support references for immediate mail transport failures.
+- Prevented the mail test page from silently overriding the configured production driver.
+- Changed OTP persistence order so a delivered OTP is already present in the database before the mail request is accepted.
 
 Earlier work:
 - Built API router and initial controller structure.
@@ -223,7 +228,8 @@ Earlier work:
 - No admin UI yet for managing categories, topics, or question bank content.
 - Seed data is minimal and should be expanded for real assessment usage.
 - `config/env.php` is intentionally not tracked and must be managed carefully per environment.
-- SMTP delivery depends on mailbox policy and provider settings.
+- Microsoft Graph or SMTP accepting a request does not prove final delivery; later Exchange bounces must be checked in the sender mailbox or Microsoft 365 message trace.
+- Password-based Microsoft 365 SMTP AUTH is no longer the recommended production transport; use Microsoft Graph with application permissions.
 - The current project does not yet include analytics, reports, or candidate management modules.
 - Some auth screens and recovery states may still need fine visual refinement after content changes.
 - Final production testing should still include browser-based smoke tests and mail delivery checks.
@@ -254,7 +260,7 @@ Production setup steps:
 5. Import `database/seed.sql`.
 6. For an existing database, apply `database/2026_06_13_add_question_scoring.sql`.
 7. Then apply `database/2026_06_13_add_grouped_question_media.sql`.
-8. Confirm the configured mail driver for OTP and reset mail.
+8. Configure Microsoft Graph for OTP and reset mail, then run the configuration checks described below.
 9. Confirm `.htaccess` is uploaded.
 10. Test `/login`, `/register`, `/forgot-password`, `/reset-password`, `/dashboard`.
 
@@ -269,6 +275,28 @@ Production settings:
 - `cookie_secure`: `true`
 - `app_env`: `production`
 - DB credentials: Hostinger production values
+- `mail_driver`: `graph`
+- `mail_from` and `graph_sender`: the authorized Microsoft 365 sender mailbox
+- `mail_tls_verify_peer`: `true`
+- `test_mail_enabled`: `false` except during a short, controlled delivery test
+- `test_mail_allow_driver_override`: `false`
+
+Production mail verification:
+1. Confirm the Azure application has Microsoft Graph application permission `Mail.Send` with admin consent.
+2. Confirm `graph_tenant_id`, `graph_client_id`, `graph_client_secret`, and `graph_sender` are current.
+3. Temporarily set `mail_debug_log` and `test_mail_enabled` to `true`.
+4. Set a new random `test_mail_key`.
+5. Open `/test-mail?key=...&driver=config&to=...`; `driver=config` is required so the test exercises the same transport as registration and password reset.
+6. Record the displayed request ID and match it in `storage/logs/mail-debug.log` or `storage/logs/mail-error.log`.
+7. If the response is accepted but no mail arrives, check the sender mailbox for a non-delivery report and check Microsoft 365 message trace. HTTP `202` from Graph means accepted for processing, not delivered.
+8. Disable `test_mail_enabled` and `mail_debug_log` after testing.
+
+Mail log behavior:
+- Every mail attempt receives a request ID.
+- Immediate configuration, token, network, TLS, SMTP, and Graph API failures are written to `storage/logs/mail-error.log`.
+- Accepted transport requests are written to `storage/logs/mail-debug.log` when debug logging is enabled.
+- User-facing immediate failures include the same support reference without exposing provider credentials or internal responses.
+- Set server permissions for `config/env.php` to `600`, or `640` if the hosting PHP process requires group read access.
 
 Important file conventions:
 - `config/env.php` is not committed.
