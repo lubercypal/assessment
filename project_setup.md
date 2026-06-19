@@ -203,6 +203,7 @@ In progress / polish:
 - Added frontend support references for immediate mail transport failures.
 - Prevented the mail test page from silently overriding the configured production driver.
 - Changed OTP persistence order so a delivered OTP is already present in the database before the mail request is accepted.
+- Moved demo/assessment duration and global negative-marking enablement into environment configuration.
 
 Earlier work:
 - Built API router and initial controller structure.
@@ -280,6 +281,12 @@ Production settings:
 - `mail_tls_verify_peer`: `true`
 - `test_mail_enabled`: `false` except during a short, controlled delivery test
 - `test_mail_allow_driver_override`: `false`
+- `demo_question_count`: number of demo questions to select
+- `assessment_question_count`: number of assessment questions to select
+- `demo_duration_seconds`: demo timer duration
+- `assessment_duration_seconds`: assessment timer duration
+- `question_shuffle_enabled`: shuffle standalone questions and complete groups as units
+- `negative_marking_enabled`: apply imported negative marks when `true`; wrong answers score `0` when `false`
 
 Production mail verification:
 1. Confirm the Azure application has Microsoft Graph application permission `Mail.Send` with admin consent.
@@ -366,6 +373,7 @@ Scoring rules:
 - `exact_match`: the selected option set must exactly match `Correct Option` to receive full marks. Any non-empty incorrect or incomplete answer receives the configured negative marks. A blank/skipped response receives `0`.
 - `partial_credit`: an exact answer receives full marks. A correct subset containing no incorrect option receives proportional marks. Selecting any incorrect option receives the configured negative marks. A blank/skipped response receives `0`.
 - For single-answer questions, use `exact_match`.
+- Global scoring switch: when `negative_marking_enabled` is `false`, imported `Negative Marks` values remain stored in the database but are not applied; wrong answers receive `0`.
 
 Excel entry examples:
 

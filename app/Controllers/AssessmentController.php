@@ -34,7 +34,9 @@ final class AssessmentController
         $limit = $mode === 'demo'
             ? self::configInt('demo_question_count', 5, 1, 100)
             : self::configInt('assessment_question_count', 30, 1, 300);
-        $duration = $mode === 'demo' ? 900 : 3600;
+        $duration = $mode === 'demo'
+            ? self::configInt('demo_duration_seconds', 900, 60, 86400)
+            : self::configInt('assessment_duration_seconds', 3600, 60, 86400);
         $categoryId = (int) $data['category_id'];
         $topicId = !empty($data['topic_id']) ? (int) $data['topic_id'] : null;
 
@@ -447,11 +449,14 @@ final class AssessmentController
         );
         $stmt->execute([$questionId]);
         $question = $stmt->fetch() ?: [];
+        $negativeMarkingEnabled = (bool) app_config('negative_marking_enabled', true);
+        $configuredNegativeMarks = (float) ($question['negative_marks'] ?? 0);
+        $effectiveNegativeMarks = $negativeMarkingEnabled ? $configuredNegativeMarks : 0.0;
         $awardedMarks = $this->awardedMarks(
             $selected,
             $correct,
             (float) ($question['marks'] ?? 1),
-            (float) ($question['negative_marks'] ?? 0),
+            $effectiveNegativeMarks,
             (string) ($question['scoring_rule'] ?? 'exact_match')
         );
 
@@ -463,7 +468,9 @@ final class AssessmentController
             'correct_answers' => array_values(array_filter($options, fn ($option) => in_array((int) $option['id'], $correct, true))),
             'explanation' => (string) ($question['explanation'] ?? ''),
             'marks' => (float) ($question['marks'] ?? 1),
-            'negative_marks' => (float) ($question['negative_marks'] ?? 0),
+            'negative_marks' => $effectiveNegativeMarks,
+            'configured_negative_marks' => $configuredNegativeMarks,
+            'negative_marking_enabled' => $negativeMarkingEnabled,
             'scoring_rule' => (string) ($question['scoring_rule'] ?? 'exact_match'),
             'awarded_marks' => $awardedMarks,
         ];
@@ -487,6 +494,10 @@ final class AssessmentController
         if ($scoringRule === 'partial_credit' && !$wrongSelections && $correct) {
             $correctSelections = array_intersect($selected, $correct);
             return round($marks * count($correctSelections) / count($correct), 2);
+        }
+
+        if ($negativeMarks <= 0) {
+            return 0.0;
         }
 
         return round(-$negativeMarks, 2);
