@@ -78,7 +78,7 @@
                 </div>
             </div>
 
-            <p class="login-copyright">&copy; <?php echo date('Y'); ?> Assessment Platform. All rights reserved.</p>
+            <p class="login-copyright">&copy; <?php echo date('Y'); ?> Assessment Platform. All rights reserved.rakesh</p>
         </section>
 
         <section class="login-card panel">
